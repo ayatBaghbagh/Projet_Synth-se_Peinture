@@ -17,6 +17,9 @@ return [
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
+    'allowed_methods' => ['*'],
+'allowed_origins' => ['*'], // À restreindre en production
+'allowed_headers' => ['*'],
 
     'allowed_origins' => ['http://localhost:3000'], // Remplacez par l'URL de votre frontend
 
@@ -30,3 +33,5 @@ return [
 
     'supports_credentials' => true, // Très important de définir ceci à true
 ];
+
+

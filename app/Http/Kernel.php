@@ -31,12 +31,18 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
 
+        // 'api' => [
+        //     // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        //     \Illuminate\Http\Middleware\HandleCors::class,
+        //     \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
+        //     \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        // ],
         'api' => [
-            // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            \Illuminate\Http\Middleware\HandleCors::class,
-            \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-        ],
+    \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+    'throttle:api',
+    \Illuminate\Routing\Middleware\SubstituteBindings::class,
+],
+
     ];
 
     /**
