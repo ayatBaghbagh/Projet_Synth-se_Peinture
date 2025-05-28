@@ -46,9 +46,8 @@ const Gallery = () => {
   }, [selectedType, projets]);
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6 md:p-10">
-      {/* Titre et filtres */}
-      <div className="mb-10 text-center max-w-full">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-stretch p-4 w-screen">
+  <div className="w-full max-w-none mx-0">
         <h1 className="text-4xl font-extrabold text-blue-700 mb-6">Notre Galerie</h1>
         <div className="flex flex-wrap justify-center gap-4">
           {typesProjets.map(type => (

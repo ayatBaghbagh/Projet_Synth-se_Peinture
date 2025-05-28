@@ -211,7 +211,7 @@ export const DemandeDevisPage = () => {
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="lg:w-2/3">
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-medium mb-3">Formulaire de demande</h3>
+              <h3 className="text-xl font-medium mb-3"><strong>Formulaire de demande</strong></h3>
               <p className="text-gray-600 mb-6">Remplissez ce formulaire pour recevoir un devis personnalisé pour votre projet de peinture.</p>
               
               {submitError && (
@@ -227,10 +227,10 @@ export const DemandeDevisPage = () => {
               
               <form onSubmit={handleSubmit}>
                 <div className="mb-6">
-                  <h4 className="text-lg font-medium mb-4">Détails du projet</h4>
+                  <h4 className="text-lg font-medium mb-4"><strong>Détails du projet</strong></h4>
                   
                   <div className="mb-4">
-                    <label htmlFor="type_projet" className="block text-gray-700 mb-2">Type de projet</label>
+                    <label htmlFor="type_projet" className="block text-gray-700 mb-2"><strong>Type de projet</strong></label>
                     <select 
                       id="type_projet" 
                       name="type_projet" 
@@ -250,7 +250,7 @@ export const DemandeDevisPage = () => {
                   </div>
                   
                   <div className="mb-4">
-                    <label htmlFor="surface" className="block text-gray-700 mb-2">Surface approximative (m²)</label>
+                    <label htmlFor="surface" className="block text-gray-700 mb-2"><strong>Surface approximative (m²)</strong></label>
                     <input 
                       type="number" 
                       id="surface" 
@@ -264,7 +264,7 @@ export const DemandeDevisPage = () => {
                   </div>
                   
                   <div className="mb-4">
-                    <label className="block text-gray-700 mb-2">Urgence du projet</label>
+                    <label className="block text-gray-700 mb-2"><strong>Urgence du projet</strong></label>
                     <div className="space-y-2">
                       <div className="flex items-center">
                         <input 
@@ -306,7 +306,7 @@ export const DemandeDevisPage = () => {
                   </div>
                   
                   <div className="mb-4">
-                    <label htmlFor="couleur_peinture" className="block text-gray-700 mb-2">Couleurs souhaitées (optionnel)</label>
+                    <label htmlFor="couleur_peinture" className="block text-gray-700 mb-2"><strong>Couleurs souhaitées (optionnel)</strong></label>
                     <input 
                       type="text" 
                       id="couleur_peinture" 
@@ -319,7 +319,7 @@ export const DemandeDevisPage = () => {
                   </div>
                   
                   <div className="mb-4">
-                    <label htmlFor="finition" className="block text-gray-700 mb-2">Type de finition (optionnel)</label>
+                    <label htmlFor="finition" className="block text-gray-700 mb-2"><strong>Type de finition (optionnel)</strong></label>
                     <select 
                       id="finition" 
                       name="finition"
@@ -336,7 +336,7 @@ export const DemandeDevisPage = () => {
                   </div>
                   
                   <div className="mb-4">
-                    <label htmlFor="description" className="block text-gray-700 mb-2">Description du projet</label>
+                    <label htmlFor="description" className="block text-gray-700 mb-2"><strong>Description du projet</strong></label>
                     <textarea 
                       id="description" 
                       name="description"

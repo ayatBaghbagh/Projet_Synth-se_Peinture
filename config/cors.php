@@ -5,33 +5,48 @@ return [
     |--------------------------------------------------------------------------
     | Cross-Origin Resource Sharing (CORS) Configuration
     |--------------------------------------------------------------------------
-    |
-    | Here you may configure your settings for cross-origin resource sharing
-    | or "CORS". This determines what cross-origin operations may execute
-    | in web browsers. You are free to adjust these settings as needed.
-    |
-    | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-    |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => [
+        'api/*',
+        'sanctum/csrf-cookie',
+        '*' // Permet CORS sur toutes les routes
+    ],
 
     'allowed_methods' => ['*'],
-    'allowed_methods' => ['*'],
-'allowed_origins' => ['*'], // À restreindre en production
-'allowed_headers' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000'], // Remplacez par l'URL de votre frontend
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:3001',
+        'http://localhost:5173', // Vite default port
+        'http://127.0.0.1:5173'
+    ],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '/^http:\/\/localhost:\d+$/',
+        '/^http:\/\/127\.0\.0\.1:\d+$/'
+    ],
 
-    'allowed_headers' => ['*'],
+    'allowed_headers' => [
+        'Accept',
+        'Authorization',
+        'Content-Type',
+        'X-Requested-With',
+        'X-CSRF-TOKEN',
+        'X-XSRF-TOKEN',
+        'Origin',
+        'Cache-Control',
+        'Pragma'
+    ],
 
-    'exposed_headers' => [],
+    'exposed_headers' => [
+        'X-CSRF-TOKEN',
+        'X-XSRF-TOKEN'
+    ],
 
-    'max_age' => 0,
+    'max_age' => 86400, // 24 heures
 
-    'supports_credentials' => true, // Très important de définir ceci à true
+    'supports_credentials' => true,
 ];
-
-

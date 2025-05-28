@@ -119,8 +119,10 @@ import { ContactPage } from "./Clients/ContactPage";
 import ArtisanPeintureAboutPage from "./Clients/ArtisanPeintureAboutPage";
 import  Gallery  from "./Clients/Gallery.jsx";
 import { PaintingServices } from './Clients/PaintingServices.jsx';
-
-
+import { Login } from './Clients/Login.jsx';
+import { Register } from './Clients/Register.jsx';
+import { ProfileClient } from './Clients/EspaceClient/ProfileClient.jsx';
+import { MesDevisPage } from './Clients/EspaceClient/MesDevisPage.jsx';
 function App() {
   return (
     <Routes>
@@ -131,6 +133,10 @@ function App() {
         <Route path="a-propos" element={<ArtisanPeintureAboutPage />} />
         <Route path="galerie" element={<Gallery  />} />
         <Route path="services" element={<PaintingServices />} />
+        <Route path="login" element={<Login />} />
+        <Route path="register" element={<Register/>} />
+        <Route path="profile" element={<ProfileClient/>} />
+        <Route path="mesdevis" element={<MesDevisPage/>} />
       </Route>
     </Routes>
   )

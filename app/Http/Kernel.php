@@ -16,6 +16,10 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+        // CORS doit être en global pour toutes les requêtes
+        \Illuminate\Http\Middleware\HandleCors::class,
+        \Fruitcake\Cors\HandleCors::class,
+
     ];
 
     /**
@@ -31,18 +35,11 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
 
-        // 'api' => [
-        //     // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-        //     \Illuminate\Http\Middleware\HandleCors::class,
-        //     \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
-        //     \Illuminate\Routing\Middleware\SubstituteBindings::class,
-        // ],
         'api' => [
-    \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-    'throttle:api',
-    \Illuminate\Routing\Middleware\SubstituteBindings::class,
-],
-
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            'throttle:api',
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        ],
     ];
 
     /**
@@ -65,6 +62,7 @@ class Kernel extends HttpKernel
      * Priorité des middlewares (optionnel).
      */
     protected $middlewarePriority = [
+        \Illuminate\Http\Middleware\HandleCors::class,
         \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
         \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Session\Middleware\StartSession::class,

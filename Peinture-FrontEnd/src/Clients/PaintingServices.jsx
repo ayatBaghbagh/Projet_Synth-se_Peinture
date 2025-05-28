@@ -251,6 +251,8 @@ export const PaintingServices = () => {
             const colorClass = serviceColors[serviceType] || 'bg-gray-50 border-gray-200 text-gray-600';
 
             return (
+  //             <div className="min-h-screen bg-gray-50 flex flex-col items-stretch p-4 w-screen">
+  // <div className="w-full max-w-none mx-0">
               <div 
                 key={serviceType} 
                 className={`rounded-lg border-2 p-6 hover:shadow-lg transition-all duration-300 ${colorClass} bg-white border-gray-200`}
