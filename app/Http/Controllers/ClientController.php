@@ -14,23 +14,29 @@ class ClientController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'nom' => 'required|string',
-            'prenom' => 'required|string',
-            'adresse' => 'required|string',
-            'email' => 'required|email|unique:clients,email',
-            'password' => 'required|string|min:6',
-            'telephone' => 'nullable|string',
-        ]);
+{
+    $validated = $request->validate([
+        'nom' => 'required|string',
+        'prenom' => 'required|string',
+        'adresse' => 'required|string',
+        'email' => 'required|email|unique:clients,email',
+        'password' => 'required|string|min:6',
+        'telephone' => 'nullable|string',
+    ]);
 
-        $validated['password'] = Hash::make($validated['password']);
-        $validated['date_inscription'] = now();
+    $validated['password'] = Hash::make($validated['password']);
+    $validated['date_inscription'] = now();
 
-        $client = Client::create($validated);
+    $client = Client::create($validated);
 
-        return response()->json($client, 201);
-    }
+    // Mettre à jour toutes les demandes sans client avec ce client
+    \DB::table('demande_devis')
+        ->whereNull('id_client')
+        ->update(['id_client' => $client->id_client]);
+
+    return response()->json($client, 201);
+}
+
 
     public function show($id)
     {
@@ -72,8 +78,4 @@ class ClientController extends Controller
     {
         return response('', 200);
     }
-    // public function profile(Request $request)
-    // {
-    //     return response()->json($request->user());
-    // }
 }

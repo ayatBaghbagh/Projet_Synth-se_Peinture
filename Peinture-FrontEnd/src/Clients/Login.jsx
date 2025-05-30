@@ -92,15 +92,24 @@ export const Login = ({ onNavigate }) => {
       );
 
       if (response.status === 200 && response.data.success) {
-        // Stocker le token et les informations du client
-        localStorage.setItem('client_token', response.data.token);
+        // CORRECTION 1: Utiliser 'auth_token' au lieu de 'client_token' pour la cohérence
+        localStorage.setItem('auth_token', response.data.token);
         localStorage.setItem('client', JSON.stringify(response.data.client));
         
         // Configurer axios avec le token pour les futures requêtes
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         
         console.log('Connexion réussie:', response.data);
-        navigate('/profile');
+        
+        // CORRECTION 2: Vérifier s'il y a une redirection prévue après login
+        const redirectAfterLogin = localStorage.getItem('redirectAfterLogin');
+        if (redirectAfterLogin) {
+          localStorage.removeItem('redirectAfterLogin');
+          navigate(redirectAfterLogin);
+        } else {
+          // Par défaut, aller au profil
+          navigate('/profile');
+        }
       }
     } catch (error) {
       console.error('Erreur:', error);

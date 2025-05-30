@@ -84,11 +84,9 @@ export function ProfileClient({ onNavigate, userData }) {
     fetchProfile();
   }, []);
 
-  // Fonction de déconnexion
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem('client_token');
-      
+      const token = localStorage.getItem('client_token');    
       if (token) {
         await axios.post('http://localhost:8000/api/client/logout', {}, {
           headers: {
@@ -101,7 +99,6 @@ export function ProfileClient({ onNavigate, userData }) {
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
     } finally {
-      // Nettoyer le localStorage et rediriger
       localStorage.removeItem('client_token');
       localStorage.removeItem('client');
       delete axios.defaults.headers.common['Authorization'];

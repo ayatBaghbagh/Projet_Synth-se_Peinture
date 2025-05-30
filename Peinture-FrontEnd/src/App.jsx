@@ -121,8 +121,12 @@ import  Gallery  from "./Clients/Gallery.jsx";
 import { PaintingServices } from './Clients/PaintingServices.jsx';
 import { Login } from './Clients/Login.jsx';
 import { Register } from './Clients/Register.jsx';
-import { ProfileClient } from './Clients/EspaceClient/ProfileClient.jsx';
+import ProtectedRoute from './Clients/EspaceClient/ProtectedRoute.jsx';
+import { ProfileClient } from './Clients/EspaceClient/ProfileClient.jsx';ListeDemandeDevis
 import { MesDevisPage } from './Clients/EspaceClient/MesDevisPage.jsx';
+import { ListeDemandeDevis } from './Geron/ListeDemandeDevis.jsx';
+import { ProjetsAdminPage } from './Geron/ProjetsAdminPage.jsx';
+import { ChefsAdminPage } from './Geron/ChefsAdminPage.jsx';
 function App() {
   return (
     <Routes>
@@ -137,6 +141,14 @@ function App() {
         <Route path="register" element={<Register/>} />
         <Route path="profile" element={<ProfileClient/>} />
         <Route path="mesdevis" element={<MesDevisPage/>} />
+        <Route path="listedemande" element={<ListeDemandeDevis/>} />
+        <Route path="projetvalider" element={<ProjetsAdminPage/>} />
+        <Route path="chefsprojets" element={<ChefsAdminPage/>} />
+        <Route path="/mesdevis" element={
+        <ProtectedRoute>
+          <MesDevisPage />
+        </ProtectedRoute>
+      } />
       </Route>
     </Routes>
   )

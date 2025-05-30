@@ -17,8 +17,14 @@ class Projet extends Model
         'favoris' => 'boolean',
     ];
 
-    public function devis()
-    {
-        return $this->belongsTo(Devis::class, 'id_devis');
-    }
+    // Dans app/Models/Projet.php
+public function devis()
+{
+    return $this->belongsTo(Devis::class, 'id_devis');
+}
+
+public function client()
+{
+    return $this->belongsTo(Client::class, 'id_client');
+}
 }

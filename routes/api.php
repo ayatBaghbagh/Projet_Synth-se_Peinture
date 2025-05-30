@@ -12,6 +12,10 @@ use App\Http\Controllers\API\PaysController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientAuthController;
+use App\Http\Controllers\ListeDemandeDevisController;
+
+use Illuminate\Support\Facades\Mail;
+
 
 // Route pour CSRF token - accessible depuis le frontend
 Route::get('/sanctum/csrf-cookie', function () {
@@ -23,6 +27,10 @@ Route::get('/sanctum/csrf-cookie', function () {
 Route::post('/clients', [ClientController::class, 'store']); // Registration
 Route::post('/auth/login', [AuthController::class, 'login']); // Login
 Route::post('/client/login', [ClientAuthController::class, 'login']); // Client Login
+
+
+
+
 
 // Routes protégées avec Sanctum pour les clients
 Route::middleware('auth:sanctum')->group(function () {
@@ -80,3 +88,114 @@ Route::get('/test', function() {
         ]
     ]);
 });
+
+Route::get('/test-mail', function () {
+    try {
+        Mail::raw('Ceci est un test', function ($message) {
+            $message->to('ayabaghbagh@gmail.com')
+                    ->subject('Test Mail');
+        });
+        return 'Mail envoyé';
+    } catch (\Exception $e) {
+        return 'Erreur: ' . $e->getMessage();
+    }
+});
+
+/*
+|--------------------------------------------------------------------------
+| Routes Admin
+|--------------------------------------------------------------------------
+*/
+Route::prefix('admin')->group(function () {
+    Route::get('/demandes-devis', [ListeDemandeDevisController::class, 'index']);
+    Route::post('/demandes-devis/{demande}/creer-devis', [ListeDemandeDevisController::class, 'creerDevis']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Routes Client
+|--------------------------------------------------------------------------
+*/
+Route::prefix('client')->group(function () {
+    Route::get('/devis', [App\Http\Controllers\Client\DevisController::class, 'index']);
+    Route::post('/devis/{id}/accepter', [App\Http\Controllers\Client\DevisController::class, 'accepter']);
+    Route::post('/devis/{id}/refuser', [App\Http\Controllers\Client\DevisController::class, 'refuser']);
+});
+
+// routes/api.php
+
+// Espace gérant
+
+Route::post('/admin/demandes-devis/{id}/creer-devis', [DevisController::class, 'createDevis']);
+
+// Espace client
+Route::get('/client/mes-devis', [ClientController::class, 'getMesDevis']);
+Route::put('/client/devis/{id}/status', [ClientController::class, 'updateDevisStatus']);
+
+Route::post('register', [ClientAuthController::class, 'register']);
+Route::post('login', [ClientAuthController::class, 'login']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('profile', [ClientAuthController::class, 'profile']);
+    Route::post('logout', [ClientAuthController::class, 'logout']);
+    Route::apiResource('demandes', DemandeDevisController::class);
+   
+});
+Route::post('demandes/{id}/creer-devis', [DemandeDevisController::class, 'creerDevis']);
+Route::apiResource('devis', DevisController::class)->only(['index', 'show', 'destroy']);
+Route::middleware('auth:sanctum')->prefix('client')->group(function () {
+    Route::get('/mes-devis', [ClientAuthController::class, 'mesDevis']);
+    Route::put('/devis/{id}/status', [ClientAuthController::class, 'updateDevisStatus']);
+});
+
+// Test de connexion API (accessible sans authentification)
+Route::get('/test', [ClientAuthController::class, 'test']);
+
+// Routes d'authentification (sans middleware)
+// Route::prefix('client')->group(function () {
+//     Route::post('/register', [ClientAuthController::class, 'register']);
+//     Route::post('/login', [ClientAuthController::class, 'login']);
+// });
+
+// // Routes protégées par l'authentification Sanctum
+// Route::middleware('auth:sanctum')->group(function () {
+    
+//     // Routes client avec préfixe /client
+//     Route::prefix('client')->group(function () {
+//         Route::get('/profile', [ClientAuthController::class, 'profile']);
+//         Route::put('/profile', [ClientAuthController::class, 'updateProfile']);
+//         Route::post('/logout', [ClientAuthController::class, 'logout']);
+        
+//         // Routes pour les devis - TOUTES LES URLS QUE VOTRE FRONTEND TESTE
+//         Route::get('/mes-devis', [ClientAuthController::class, 'mesDevis']);
+//         Route::get('/mesdevis', [ClientAuthController::class, 'mesDevis']); // Alternative
+//         Route::put('/devis/{id}/status', [ClientAuthController::class, 'updateDevisStatus']);
+//         Route::put('/devis/{id}', [ClientAuthController::class, 'updateDevisStatus']); // Alternative
+        
+//         // Routes pour les projets
+//         Route::get('/mes-projets', [ClientAuthController::class, 'mesProjets']);
+//     });
+    
+//     // Routes alternatives sans préfixe (pour compatibilité avec votre frontend)
+//     Route::get('/mes-devis', [ClientAuthController::class, 'mesDevis']);
+//     Route::get('/mesdevis', [ClientAuthController::class, 'mesDevis']);
+//     Route::put('/devis/{id}/status', [ClientAuthController::class, 'updateDevisStatus']);
+//     Route::put('/devis/{id}', [ClientAuthController::class, 'updateDevisStatus']);
+// });
+
+// Remplacer toutes les routes d'authentification par :
+Route::prefix('auth')->group(function () {
+    Route::post('/register', [ClientAuthController::class, 'register']);
+    Route::post('/login', [ClientAuthController::class, 'login']);
+    Route::post('/logout', [ClientAuthController::class, 'logout'])->middleware('auth:sanctum');
+});
+
+// Routes protégées
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/profile', [ClientAuthController::class, 'profile']);
+    Route::put('/profile', [ClientAuthController::class, 'updateProfile']);
+    Route::get('/mes-devis', [ClientAuthController::class, 'mesDevis']);
+    Route::get('/mes-projets', [ClientAuthController::class, 'mesProjets']);
+    Route::put('/devis/{id}/status', [ClientAuthController::class, 'updateDevisStatus']);
+});
+
