@@ -13,10 +13,23 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\ListeDemandeDevisController;
+use App\Http\Controllers\Admin\UserManagementController;
 
 use Illuminate\Support\Facades\Mail;
 
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/client/login', [ClientAuthController::class, 'login']);
+Route::post('/clients', [ClientController::class, 'store']);
 
+Route::prefix('admin')->group(function () {
+    Route::get('/users', [UserManagementController::class, 'index']);
+    Route::post('/users', [UserManagementController::class, 'store']);
+    Route::put('/users/{id}', [UserManagementController::class, 'update']);
+    Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
+    Route::post('/users/{id}/toggle-block', [UserManagementController::class, 'toggleBlock']);
+    Route::get('/demandes-devis', [ListeDemandeDevisController::class, 'index']);
+    Route::post('/demandes-devis/{demande}/creer-devis', [ListeDemandeDevisController::class, 'creerDevis']);
+});
 // Route pour CSRF token - accessible depuis le frontend
 Route::get('/sanctum/csrf-cookie', function () {
     return response()->json(['message' => 'CSRF cookie set'], 200)
@@ -133,7 +146,7 @@ Route::get('/client/mes-devis', [ClientController::class, 'getMesDevis']);
 Route::put('/client/devis/{id}/status', [ClientController::class, 'updateDevisStatus']);
 
 Route::post('register', [ClientAuthController::class, 'register']);
-Route::post('login', [ClientAuthController::class, 'login']);
+// Route::post('login', [ClientAuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('profile', [ClientAuthController::class, 'profile']);
@@ -184,11 +197,11 @@ Route::get('/test', [ClientAuthController::class, 'test']);
 // });
 
 // Remplacer toutes les routes d'authentification par :
-Route::prefix('auth')->group(function () {
-    Route::post('/register', [ClientAuthController::class, 'register']);
-    Route::post('/login', [ClientAuthController::class, 'login']);
-    Route::post('/logout', [ClientAuthController::class, 'logout'])->middleware('auth:sanctum');
-});
+// Route::prefix('auth')->group(function () {
+//     Route::post('/register', [ClientAuthController::class, 'register']);
+//     Route::post('/login', [ClientAuthController::class, 'login']);
+//     Route::post('/logout', [ClientAuthController::class, 'logout'])->middleware('auth:sanctum');
+// });
 
 // Routes protégées
 Route::middleware('auth:sanctum')->group(function () {

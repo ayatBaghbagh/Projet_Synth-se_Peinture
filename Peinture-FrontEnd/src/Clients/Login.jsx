@@ -1,43 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Eye, EyeOff, Mail, Lock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 export const Login = ({ onNavigate }) => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [csrfToken, setCsrfToken] = useState('');
-
-  // Fonction pour extraire le token CSRF du cookie
-  const getCSRFToken = () => {
-    const tokenCookie = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('XSRF-TOKEN='));
-    return tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : '';
-  };
-
-  // Initialisation à la première ouverture
-  useEffect(() => {
-    const initCSRF = async () => {
-      try {
-        await axios.get('http://localhost:8000/sanctum/csrf-cookie', {
-          withCredentials: true
-        });
-        const token = getCSRFToken();
-        setCsrfToken(token);
-        axios.defaults.headers.common['X-XSRF-TOKEN'] = token;
-        axios.defaults.withCredentials = true;
-        console.log('Token CSRF récupéré');
-      } catch (error) {
-        console.error('Erreur lors de l\'initialisation CSRF', error);
-      }
-    };
-
-    initCSRF();
-  }, []);
+  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -45,7 +19,7 @@ export const Login = ({ onNavigate }) => {
       ...prev,
       [name]: value
     }));
-
+    
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -56,75 +30,146 @@ export const Login = ({ onNavigate }) => {
 
   const validateForm = () => {
     const newErrors = {};
-
+    
     if (!formData.email) {
       newErrors.email = 'L\'email est requis';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email invalide';
     }
-
+    
     if (!formData.password) {
       newErrors.password = 'Le mot de passe est requis';
     }
-
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Configuration axios avec interceptors pour gérer CSRF automatiquement
+  useEffect(() => {
+    const requestInterceptor = axios.interceptors.request.use(
+      (config) => {
+        const token = getCookie('XSRF-TOKEN');
+        if (token) {
+          config.headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error.response?.status === 419) {
+          await fetchCSRFToken();
+          const originalRequest = error.config;
+          const newToken = getCookie('XSRF-TOKEN');
+          if (newToken) {
+            originalRequest.headers['X-XSRF-TOKEN'] = decodeURIComponent(newToken);
+            return axios.request(originalRequest);
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    fetchCSRFToken();
+
+    return () => {
+      axios.interceptors.request.eject(requestInterceptor);
+      axios.interceptors.response.eject(responseInterceptor);
+    };
+  }, []);
+
+  const getCookie = (name) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  };
+
+  const fetchCSRFToken = async () => {
+    try {
+      await axios.get('http://localhost:8000/sanctum/csrf-cookie', {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching CSRF token:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validateForm()) return;
 
     setLoading(true);
     setErrors({});
 
     try {
+      // Rafraîchir le token CSRF
+      await fetchCSRFToken();
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      console.log('Tentative de connexion avec:', { email: formData.email });
+
       const response = await axios.post(
-        'http://localhost:8000/api/client/login',
-        formData,
+        'http://localhost:8000/api/login',
         {
+          email: formData.email,
+          password: formData.password
+        },
+        {
+          withCredentials: true,
           headers: {
-            'Content-Type': 'application/json',
-            'X-XSRF-TOKEN': csrfToken
-          },
-          withCredentials: true
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
         }
       );
 
-      if (response.status === 200 && response.data.success) {
-        // CORRECTION 1: Utiliser 'auth_token' au lieu de 'client_token' pour la cohérence
-        localStorage.setItem('auth_token', response.data.token);
-        localStorage.setItem('client', JSON.stringify(response.data.client));
-        
-        // Configurer axios avec le token pour les futures requêtes
-        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-        
-        console.log('Connexion réussie:', response.data);
-        
-        // CORRECTION 2: Vérifier s'il y a une redirection prévue après login
-        const redirectAfterLogin = localStorage.getItem('redirectAfterLogin');
-        if (redirectAfterLogin) {
-          localStorage.removeItem('redirectAfterLogin');
-          navigate(redirectAfterLogin);
-        } else {
-          // Par défaut, aller au profil
-          navigate('/profile');
-        }
+      if (response.data.success) {
+        // Stocker le token et rediriger
+        localStorage.setItem('authToken', response.data.token);
+        navigate('/dashboard');
       }
+
     } catch (error) {
-      console.error('Erreur:', error);
-      if (error.response?.status === 401) {
-        setErrors({
-          general: 'Email ou mot de passe incorrect'
-        });
-      } else if (error.response?.data?.message) {
-        setErrors({
-          general: error.response.data.message
-        });
+      console.error('=== ERREUR COMPLÈTE ===');
+      console.error('Error object:', error);
+      console.error('Response:', error.response);
+      console.error('Request:', error.request);
+      console.error('Message:', error.message);
+
+      if (error.response) {
+        const { status, data } = error.response;
+
+        if (status === 419) {
+          console.error('Erreur 419:', data);
+          setErrors({ general: 'Session expirée. Veuillez réessayer.' });
+        } else if (status === 422) {
+          const backendErrors = data.errors || {};
+          const formattedErrors = {};
+          
+          Object.keys(backendErrors).forEach(key => {
+            formattedErrors[key] = backendErrors[key][0];
+          });
+          
+          setErrors(formattedErrors);
+        } else if (status === 401) {
+          setErrors({ general: 'Email ou mot de passe incorrect' });
+        } else {
+          setErrors({ general: data.message || 'Erreur lors de la connexion' });
+        }
+      } else if (error.request) {
+        setErrors({ general: 'Pas de réponse du serveur' });
       } else {
-        setErrors({
-          general: 'Erreur de connexion. Veuillez réessayer.'
-        });
+        setErrors({ general: 'Erreur de configuration' });
       }
     } finally {
       setLoading(false);
@@ -133,20 +178,19 @@ export const Login = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-stretch p-4 w-screen">
-      <div className="w-full max-w-full">
-        {/* Bouton Retour */}
-        <button
-          onClick={() => onNavigate('home')}
+      <div className="w-full max-w-md mx-auto">
+        <button 
           className="flex items-center text-gray-600 hover:text-gray-800 mb-6 transition-colors"
+          onClick={() => navigate('/')}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          <a href="/" className="back-link">Retour à l'accueil</a>
+          Retour à l'accueil
         </button>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Connexion</h2>
-            <p className="text-gray-600">Entrez vos identifiants pour accéder à votre compte</p>
+            <p className="text-gray-600">Connectez-vous pour accéder à votre compte</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -156,7 +200,6 @@ export const Login = ({ onNavigate }) => {
               </div>
             )}
 
-            {/* Champ Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email <span className="text-red-500">*</span>
@@ -177,24 +220,14 @@ export const Login = ({ onNavigate }) => {
               {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
             </div>
 
-            {/* Champ Mot de passe */}
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Mot de passe <span className="text-red-500">*</span>
-                </label>
-                <button
-                  type="button"
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                  onClick={() => onNavigate('forgot-password')}
-                >
-                  Mot de passe oublié?
-                </button>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mot de passe <span className="text-red-500">*</span>
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
@@ -214,16 +247,39 @@ export const Login = ({ onNavigate }) => {
               {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
             </div>
 
-            {/* Bouton de connexion */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                  Se souvenir de moi
+                </label>
+              </div>
+
+              <div className="text-sm">
+                <button
+                  type="button"
+                  className="text-blue-600 hover:text-blue-800"
+                  onClick={() => alert('Mot de passe oublié à implémenter')}
+                >
+                  Mot de passe oublié ?
+                </button>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Connexion...
+                  Connexion en cours...
                 </div>
               ) : (
                 'Se connecter'
@@ -233,12 +289,12 @@ export const Login = ({ onNavigate }) => {
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
-              Vous n'avez pas de compte?{' '}
+              Vous n'avez pas de compte ?{' '}
               <button
-                onClick={() => onNavigate('register')}
+                onClick={() => navigate('/register')}
                 className="text-blue-600 hover:text-blue-800 font-medium"
               >
-                S'inscrire
+                Créer un compte
               </button>
             </p>
           </div>

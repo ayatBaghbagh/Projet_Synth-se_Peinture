@@ -127,12 +127,14 @@ import { MesDevisPage } from './Clients/EspaceClient/MesDevisPage.jsx';
 import { ListeDemandeDevis } from './Geron/ListeDemandeDevis.jsx';
 import { ProjetsAdminPage } from './Geron/ProjetsAdminPage.jsx';
 import { ChefsAdminPage } from './Geron/ChefsAdminPage.jsx';
+import {Utilisateurs} from './Geron/Utilisateurs.jsx';
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="demande-devis" element={<DemandeDevisPage />} />
+         <Route path="utilisateurs" element={<Utilisateurs />} />
         <Route path="contact" element={<ContactPage />} />
         <Route path="a-propos" element={<ArtisanPeintureAboutPage />} />
         <Route path="galerie" element={<Gallery  />} />

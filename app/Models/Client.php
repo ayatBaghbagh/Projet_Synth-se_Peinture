@@ -21,7 +21,8 @@ class Client extends Authenticatable
         'email',
         'password',
         'telephone',
-        'entreprise',
+       'date_inscription',
+       'block',
     ];
 
     protected $hidden = [
