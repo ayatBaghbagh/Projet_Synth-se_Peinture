@@ -1,4 +1,12 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect, useCallback } from 'react'; 
+import EditTaskModal from "./EditTaskModal";
+import DeleteTaskModal from "./DeleteTaskModal";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
+
+
+import axios from 'axios';
 import { 
   Search, 
   Plus, 
@@ -46,11 +54,29 @@ export function ProjetsAdminPage() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [showEditTaskModal, setShowEditTaskModal] = useState(false);
     const [selectedProjet, setSelectedProjet] = useState(null);
+    const [selectedTask, setSelectedTask] = useState(null);
     const [showActionsMenu, setShowActionsMenu] = useState(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [projetToDelete, setProjetToDelete] = useState(null);
     const [selectedProjetForTask, setSelectedProjetForTask] = useState(null);
+    const [clients, setClients] = useState([]);
+    const [showProjectTypeModal, setShowProjectTypeModal] = useState(false);
+    const [taches, setTaches] = useState([]);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [refresh, setRefresh] = useState(0);
+    const [showDeleteTaskModal, setShowDeleteTaskModal] = useState(false);
+    const [taskFormData, setTaskFormData] = useState({
+        nom_tache: '',
+        description: '',
+        date_debut: '',
+        date_fin: '',
+        statut: 'afaire',
+        notes: '',
+        type_projet: '',
+        assignee_id: ''
+    });
 
     const navItems = [
         { id: 'Dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
@@ -90,93 +116,180 @@ export function ProjetsAdminPage() {
         }
     };
 
-    // Données statiques pour démonstration
-    const projetsData = [
-        {
-            id_projet: 1,
-            titre: "Villa Moderne",
-            adresse: "123 Rue des Roses, Tunis",
-            client: { nom: "Pierre Durand" },
-            chef_projet: { nom: "Ahmed Ben Ali" },
-            status: "encours",
-            avancement: 75,
-            budget: 5000,
-            date_d: "2024-05-10",
-            date_f: "2024-05-30",
-            favoris: true,
-            description: "Peinture complète d’une villa moderne avec finitions haut de gamme",
-            equipe: [
-                { nom: "Ahmed Ben Ali", role: "Chef" },
-                { nom: "Karim Sasai" },
-                { nom: "Youssef Gharbi" }
-            ],
-            taches: [
-                { 
-                    id: 1, 
-                    nom: "Peinture du salon", 
-                    status: "termine", 
-                    assignee: "Karim Sasai", 
-                    date_d: "2024-05-10", 
-                    date_f: "2024-05-15",
-                    notes: "Finition mate, couleur beige"
-                },
-                { 
-                    id: 2, 
-                    nom: "Peinture des chambres", 
-                    status: "encours", 
-                    assignee: "Youssef Gharbi", 
-                    date_d: "2024-05-16", 
-                    date_f: "2024-05-25",
-                    notes: "Couleurs personnalisées selon..."
-                },
-                { 
-                    id: 3, 
-                    nom: "Peinture de la cuisine", 
-                    status: "afaire", 
-                    assignee: "Karim Sasai", 
-                    date_d: "2024-05-26", 
-                    date_f: "2024-05-30",
-                    notes: "Peinture résistante à l’humidité"
-                }
-            ]
-        },
-        {
-            id_projet: 2,
-            titre: "Appartement Luxe",
-            adresse: "45 Avenue Habib Bourguiba, Sousse",
-            client: { nom: "Sophie Martin" },
-            chef_projet: { nom: "Leila Ben Amor" },
-            status: "planifie",
-            avancement: 10,
-            budget: 3500,
-            date_d: "2024-06-01",
-            date_f: "2024-06-20",
-            favoris: false,
-            description: "Rénovation complète d'un appartement de luxe avec matériaux premium",
-            equipe: [
-                { nom: "Leila Ben Amor", role: "Chef" },
-                { nom: "Mohamed Karray" }
-            ],
-            taches: [
-                { 
-                    id: 1, 
-                    nom: "Démolition des cloisons", 
-                    status: "afaire", 
-                    assignee: "Mohamed Karray", 
-                    date_d: "2024-06-01", 
-                    date_f: "2024-06-05"
-                }
-            ]
-        }
+    // Données statiques pour chef de projet et équipes (temporaire)
+    const staticChefs = [
+        { id: 1, nom: "Ahmed Ben Ali" },
+        { id: 2, nom: "Leila Ben Amor" },
+        { id: 3, nom: "Mohamed Karray" }
     ];
 
+    const staticPeintres = [
+        { id: 1, nom: "Karim Sasai" },
+        { id: 2, nom: "Youssef Gharbi" },
+        { id: 3, nom: "Ali Mansouri" },
+        { id: 4, nom: "Fatma Jaziri" }
+    ];
+    
+
+    // Fonction pour récupérer le token CSRF depuis les cookies
+    const getCSRFToken = () => {
+        const tokenCookie = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('XSRF-TOKEN='));
+            
+        if (tokenCookie) {
+            return decodeURIComponent(tokenCookie.split('=')[1]);
+        }
+        return '';
+    };
+
+    // Fonction pour initialiser la protection CSRF
+    const setupCSRF = async () => {
+        try {
+            await fetch('http://localhost:8000/sanctum/csrf-cookie', {
+                credentials: 'include'
+            });
+            
+            const token = getCSRFToken();
+            return token;
+        } catch (error) {
+            console.error('Erreur lors de la configuration CSRF:', error);
+            return null;
+        }
+    };
+
+    // API calls
+    const fetchProjets = async () => {
+        try {
+            const csrfToken = await setupCSRF();
+            const response = await fetch('http://localhost:8000/api/projets', {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken || ''
+                },
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new TypeError("La réponse n'est pas du JSON");
+            }
+
+            const data = await response.json();
+            
+            // Ajouter les données statiques manquantes et récupérer les données devis
+            const projetsWithStaticData = data.map(projet => ({
+                ...projet,
+                chef_projet: { nom: staticChefs[Math.floor(Math.random() * staticChefs.length)].nom },
+                avancement: projet.avancement || Math.floor(Math.random() * 100),
+                equipe: [
+                    { nom: staticChefs[0].nom, role: "Chef" },
+                    { nom: staticPeintres[0].nom },
+                    { nom: staticPeintres[1].nom }
+                ],
+                taches: projet.taches || [],
+                // Ajouter description et prix du devis
+                devis_description: projet.devis?.description || '',
+                devis_prix: projet.devis?.prix_total || 0
+            }));
+            
+            setProjets(projetsWithStaticData);
+            setFilteredProjets(projetsWithStaticData);
+        } catch (error) {
+            console.error('Erreur lors de la récupération des projets:', error);
+            setProjets([]);
+        }
+    };
     useEffect(() => {
-        // Chargement initial des données
-        setTimeout(() => {
-            setProjets(projetsData);
-            setFilteredProjets(projetsData);
-            setIsLoading(false);
-        }, 1000);
+    fetchProjets();
+  }, [refresh]);
+
+  const handleDeleteTask = (task) => {
+    setSelectedTask(task);
+    setShowDeleteTaskModal(true);
+  };
+
+  const handleSuccessDelete = () => {
+    setRefresh(prev => prev + 1);
+    setShowDeleteTaskModal(false);
+  };
+  <ToastContainer />
+  
+    const fetchClients = async () => {
+        try {
+            const response = await fetch('http://localhost:8000/api/clients', {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new TypeError("La réponse n'est pas du JSON");
+            }
+
+            const data = await response.json();
+            setClients(data);
+        } catch (error) {
+            console.error('Erreur lors de la récupération des clients:', error);
+            setClients([]);
+        }
+    };
+
+    const fetchTachesForProject = async (projectId) => {
+  try {
+    const csrfToken = await setupCSRF();
+    const response = await fetch(`http://localhost:8000/api/projets/${projectId}/taches`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': csrfToken || ''
+      },
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const taches = await response.json();
+    
+    // Mettre à jour les tâches du projet
+    setProjets(prev => prev.map(p => 
+      p.id_projet === projectId ? { ...p, taches: taches || [] } : p
+    ));
+  } catch (error) {
+    console.error('Erreur lors de la récupération des tâches:', error);
+    // Assurez-vous que le tableau des tâches est toujours initialisé
+    setProjets(prev => prev.map(p => 
+      p.id_projet === projectId ? { ...p, taches: [] } : p
+    ));
+  }
+};
+
+    useEffect(() => {
+        const loadData = async () => {
+            setIsLoading(true);
+            try {
+                await setupCSRF();
+                await Promise.all([fetchProjets(), fetchClients()]);
+            } catch (error) {
+                console.error('Erreur lors du chargement initial:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadData();
     }, []);
 
     useEffect(() => {
@@ -186,7 +299,7 @@ export function ProjetsAdminPage() {
         if (selectedFilter !== 'Tous les Projets') {
             const filterKey = filterOptions.find(f => f.label === selectedFilter)?.key;
             if (filterKey === 'favoris') {
-                filtered = filtered.filter(p => p.favoris || p.chef_projet?.nom === 'Non assigné');
+                filtered = filtered.filter(p => p.favoris);
             } else if (filterKey !== 'all') {
                 filtered = filtered.filter(p => p.status === filterKey);
             }
@@ -195,19 +308,348 @@ export function ProjetsAdminPage() {
         if (searchTerm) {
             filtered = filtered.filter(p => 
                 p.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (p.client?.nom && p.client.nom.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                (p.chef_projet?.nom && p.chef_projet.nom.toLowerCase().includes(searchTerm.toLowerCase()))
+                (p.client?.nom && p.client.nom.toLowerCase().includes(searchTerm.toLowerCase()))
             );
         }
 
         setFilteredProjets(filtered);
     }, [projets, selectedFilter, searchTerm]);
 
-    const handleToggleFavori = (id) => {
-        setProjets(prev => prev.map(p => 
-            p.id_projet === id ? { ...p, favoris: !p.favoris } : p
-        ));
+    const handleToggleFavori = async (id) => {
+        try {
+            const csrfToken = await setupCSRF();
+            if (!csrfToken) {
+                throw new Error('Impossible d\'obtenir le token CSRF');
+            }
+
+            const response = await fetch(`http://localhost:8000/api/projets/${id}/toggle-favori`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken
+                },
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            setProjets(prev => prev.map(p => 
+                p.id_projet === id ? { ...p, favoris: data.favoris } : p
+            ));
+
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour des favoris:', error);
+        }
     };
+
+    const handleCreateProject = async (formData) => {
+        try {
+            const csrfToken = await setupCSRF();
+            const response = await fetch('http://localhost:8000/api/projets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken || ''
+                },
+                credentials: 'include',
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                fetchProjets();
+                setShowAddModal(false);
+            }
+        } catch (error) {
+            console.error('Erreur lors de la création du projet:', error);
+        }
+    };
+
+    const handleUpdateProject = async (formData) => {
+        try {
+            const csrfToken = await setupCSRF();
+            const response = await fetch(`http://localhost:8000/api/projets/${selectedProjet.id_projet}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken || ''
+                },
+                credentials: 'include',
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                fetchProjets();
+                setShowEditModal(false);
+                setSelectedProjet(null);
+            }
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du projet:', error);
+        }
+    };
+
+    const handleDeleteProject = async (id) => {
+        try {
+            const csrfToken = await setupCSRF();
+            const response = await fetch(`http://localhost:8000/api/projets/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken || ''
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                setProjets(prev => prev.filter(p => p.id_projet !== id));
+                setShowDeleteModal(false);
+                setProjetToDelete(null);
+            }
+        } catch (error) {
+            console.error('Erreur lors de la suppression du projet:', error);
+        }
+    };
+    
+    const envoyerTache = async (formData) => { 
+  try {
+    // Obtention du cookie CSRF (ok)
+    await axios.get('http://localhost:8000/sanctum/csrf-cookie', {
+      withCredentials: true,
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Récupération du token CSRF (ok)
+    const getCSRFToken = () => {
+      const tokenCookie = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('XSRF-TOKEN='));
+      return tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : '';
+    };
+    const token = getCSRFToken();
+
+    // Envoi de la requête POST
+    const response = await axios.post(
+      'http://localhost:8000/api/taches-projet',
+      formData,
+      {
+        withCredentials: true,
+        headers: {
+          'X-XSRF-TOKEN': token,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    console.log('Tâche créée avec succès', response.data);
+
+    // Affiche le modal ici, AVANT de retourner
+    setShowSuccessModal(true);
+
+    // Si tu veux retourner des données, retourne après
+    return response.data;
+
+  } catch (error) {
+    console.error('Erreur lors de l’envoi de la tâche :', error);
+    throw error;
+  }
+};
+
+
+
+   const handleCreateTask = async () => {
+  try {
+    // 1. Validation des champs obligatoires
+    const requiredFields = {
+      'nom_tache': 'Le nom de la tâche est requis',
+      'date_debut': 'La date de début est requise',
+      'date_fin': 'La date de fin est requise',
+      'type_projet': 'Le type de projet est requis'
+    };
+
+    for (const [field, message] of Object.entries(requiredFields)) {
+      if (!taskFormData[field]?.toString().trim()) {
+        throw new Error(message);
+      }
+    }
+
+    // 2. Validation des dates
+    const startDate = new Date(taskFormData.date_debut);
+    const endDate = new Date(taskFormData.date_fin);
+    
+    if (endDate < startDate) {
+      throw new Error('La date de fin doit être postérieure à la date de début');
+    }
+
+    // 3. Préparation des données
+    const dataToSend = {
+      nom_tache: taskFormData.nom_tache.trim(),
+      description: taskFormData.description?.trim() || null,
+      date_debut: taskFormData.date_debut,
+      date_fin: taskFormData.date_fin,
+      statut: taskFormData.statut || 'a_faire',
+      notes: taskFormData.notes?.trim() || null,
+      type_projet: taskFormData.type_projet,
+      projet_id: selectedProjetForTask.id_projet,
+      assignee_id: taskFormData.assignee_id || null
+    };
+
+    // 4. Envoi à l'API
+    const createdTask = await envoyerTache(dataToSend);
+
+    // 5. Gestion du succès
+    // a. Rafraîchir les tâches
+    await fetchTachesForProject(selectedProjetForTask.id_projet);
+    
+    // b. Reset du formulaire
+    setTaskFormData({
+      nom_tache: '',
+      description: '',
+      date_debut: '',
+      date_fin: '',
+      statut: 'a_faire',
+      notes: '',
+      type_projet: '',
+      assignee_id: ''
+    });
+
+    // c. Fermer les modales
+    setShowTaskModal(false);
+    setShowProjectTypeModal(false);
+
+    // d. Afficher notification de succès
+    setShowSuccessModal({
+      show: true,
+      message: `Tâche "${createdTask.nom_tache}" créée avec succès`
+    });
+
+    return createdTask;
+
+  } catch (error) {
+    // 6. Gestion des erreurs détaillée
+    let errorMessage = "Une erreur est survenue";
+    
+    if (error.response) {
+      // Erreur API (422 = validation Laravel)
+      if (error.response.status === 422) {
+        const errors = error.response.data.errors;
+        errorMessage = Object.values(errors).flat().join('\n');
+      } else {
+        errorMessage = `Erreur serveur: ${error.response.status}`;
+      }
+    } else if (error.message) {
+      // Erreur de validation manuelle
+      errorMessage = error.message;
+    }
+
+    // Afficher l'erreur (vous pourriez utiliser un système de toast ici)
+    alert(errorMessage);
+    console.error('Erreur création tâche:', error);
+
+    // Pour les erreurs de validation, garder la modale ouverte
+    if (!error.response || error.response.status !== 422) {
+      setShowTaskModal(false);
+      setShowProjectTypeModal(false);
+    }
+
+    throw error; // Propager l'erreur pour un traitement supplémentaire si nécessaire
+  }
+};
+const handleEditTask = (task) => {
+    setSelectedTask(task);
+    setShowEditTaskModal(true);
+};
+
+
+    const handleUpdateTask = async () => {
+        try {
+            const csrfToken = await setupCSRF();
+            if (!csrfToken) {
+                throw new Error('Impossible d\'obtenir le token CSRF');
+            }
+
+            const response = await fetch(`http://localhost:8000/api/taches-projet/${selectedTask.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-XSRF-TOKEN': csrfToken
+                },
+                credentials: 'include',
+                body: JSON.stringify(taskFormData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            await fetchTachesForProject(selectedTask.projet_id);
+            setShowEditTaskModal(false);
+            setSelectedTask(null);
+            resetTaskForm();
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour de la tâche:', error);
+        }
+    };
+
+    const resetTaskForm = () => {
+        setTaskFormData({
+            nom_tache: '',
+            description: '',
+            date_debut: '',
+            date_fin: '',
+            statut: 'afaire',
+            notes: '',
+            type_projet: '',
+            assignee_id: ''
+        });
+    };
+
+    const toggleProjectExpansion = async (projectId) => {
+  setExpandedProjects(prev => ({
+    ...prev,
+    [projectId]: !prev[projectId]
+  }));
+
+  if (!expandedProjects[projectId]) {
+    await fetchTachesForProject(projectId);
+  }
+};
+
+    
+
+    const handleEditProject = (projet) => {
+        setSelectedProjet(projet);
+        setShowEditModal(true);
+    };
+
+    // Handlers avec useCallback pour éviter les re-renders
+    const handleInputChangeTask = (e) => {
+  const { name, value } = e.target;
+
+  setTaskFormData(prev => ({
+    ...prev,
+    [name]: value,
+  }));
+};
+
+
+// 1. Ajoutez cette fonction handleInputChange pour les tâches AVANT le return
+const handleTaskInputChange = (e) => {
+    const { name, value } = e.target;
+    setTaskFormData(prev => ({
+        ...prev,
+        [name]: value
+    }));
+};
 
     const getStatusIcon = (status) => {
         const config = statusConfig[status];
@@ -235,16 +677,9 @@ export function ProjetsAdminPage() {
         const total = projets.length;
         const enCours = projets.filter(p => p.status === 'encours').length;
         const termines = projets.filter(p => p.status === 'termine').length;
-        const aAffecter = projets.filter(p => p.favoris || p.chef_projet?.nom === 'Non assigné').length;
+        const aAffecter = projets.filter(p => p.favoris).length;
         
         return { total, enCours, termines, aAffecter };
-    };
-
-    const toggleProjectExpansion = (projectId) => {
-        setExpandedProjects(prev => ({
-            ...prev,
-            [projectId]: !prev[projectId]
-        }));
     };
 
     const toggleActionsMenu = (projectId) => {
@@ -265,17 +700,72 @@ export function ProjetsAdminPage() {
 
     const stats = getTotalStats();
 
-    const handleDeleteProjet = (id) => {
-        setProjets(prev => prev.filter(p => p.id_projet !== id));
-        setShowDeleteModal(false);
-    };
-
-    // Composant pour la modale d'ajout de tâche
-    const AddTaskModal = ({ onClose }) => (
+    // Composant pour choisir le type de projet
+    const ProjectTypeModal = ({ onClose }) => (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Ajouter une tâche</h3>
+                    <h3 className="text-lg font-semibold">Type de Projet</h3>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="space-y-4">
+                    <p className="text-gray-600">Choisissez le type de projet pour assigner les bonnes personnes :</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <button 
+                            onClick={() => {
+                                setTaskFormData(prev => ({ 
+                                    ...prev, 
+                                    type_projet: 'grand',
+                                    description: selectedProjetForTask?.devis_description || ''
+                                }));
+                                setShowProjectTypeModal(false);
+                                setShowTaskModal(true);
+                            }}
+                            className="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors"
+                        >
+                            <div className="text-center">
+                                <Users className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                                <h4 className="font-semibold">Grand Projet</h4>
+                                <p className="text-sm text-gray-500">Assigné aux chefs d'équipe</p>
+                            </div>
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setTaskFormData(prev => ({ 
+                                    ...prev, 
+                                    type_projet: 'petit',
+                                    description: selectedProjetForTask?.devis_description || ''
+                                }));
+                                setShowProjectTypeModal(false);
+                                setShowTaskModal(true);
+                            }}
+                            className="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors"
+                        >
+                            <div className="text-center">
+                                <User className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                                <h4 className="font-semibold">Petit Projet</h4>
+                                <p className="text-sm text-gray-500">Assigné aux peintres</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Composant pour la modale d'ajout de tâche
+    const AddTaskModal = ({ onClose, taskFormData, selectedProjetForTask }) => {
+    const availableAssignees = taskFormData.type_projet === 'grand' ? staticChefs : staticPeintres;
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">
+                        Ajouter une tâche - {taskFormData.type_projet === 'grand' ? 'Grand Projet' : 'Petit Projet'}
+                    </h3>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                         <X className="w-5 h-5" />
                     </button>
@@ -285,16 +775,45 @@ export function ProjetsAdminPage() {
                         <label className="block text-sm font-medium text-gray-700">Nom de la tâche</label>
                         <input 
                             type="text" 
+                            name="nom_tache"
+                            value={taskFormData.nom_tache}
+                            onChange={handleInputChangeTask}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
                             placeholder="Nom de la tâche"
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Assignée à</label>
-                        <select className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                            <option>Ahmed Ben Ali</option>
-                            <option>Karim Sasai</option>
-                            <option>Youssef Gharbi</option>
+                        <label className="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea 
+                            value={taskFormData.description}
+                            name="description"
+                            onChange={handleInputChangeTask}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
+                            rows="3"
+                            placeholder="Description de la tâche..."
+                        />
+                        {selectedProjetForTask?.devis_prix > 0 && (
+                            <div className="mt-2 p-2 bg-blue-50 rounded">
+                                <p className="text-sm text-blue-700">
+                                    Prix de référence du devis: {formatCurrency(selectedProjetForTask.devis_prix)}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                            Assignée à ({taskFormData.type_projet === 'grand' ? 'Chef d\'équipe' : 'Peintre'})
+                        </label>
+                        <select 
+                            value={taskFormData.assignee_id}
+                            name="assignee_id"
+                            onChange={handleInputChangeTask}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                            <option value="">Sélectionner une personne</option>
+                            {availableAssignees.map(person => (
+                                <option key={person.id} value={person.id}>{person.nom}</option>
+                            ))}
                         </select>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -302,6 +821,9 @@ export function ProjetsAdminPage() {
                             <label className="block text-sm font-medium text-gray-700">Date de début</label>
                             <input 
                                 type="date" 
+                                name="date_debut"
+                                value={taskFormData.date_debut}
+                                onChange={handleInputChangeTask}
                                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
                             />
                         </div>
@@ -309,25 +831,36 @@ export function ProjetsAdminPage() {
                             <label className="block text-sm font-medium text-gray-700">Date de fin</label>
                             <input 
                                 type="date" 
+                                name="date_fin"
+                                value={taskFormData.date_fin}
+                                onChange={handleInputChangeTask}
                                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
                             />
                         </div>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Statut</label>
-                        <select className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                            <option value="afaire">À faire</option>
-                            <option value="encours">En cours</option>
+                        <select 
+                            name="statut"
+                            value={taskFormData.statut}
+                            onChange={handleInputChangeTask}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                            <option value="a_faire">À faire</option>
+                            <option value="en_cours">En cours</option>
                             <option value="termine">Terminé</option>
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Notes</label>
                         <textarea 
+                            value={taskFormData.notes}
+                            name="notes"
+                            onChange={handleInputChangeTask}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
                             rows="3"
                             placeholder="Notes supplémentaires..."
-                        ></textarea>
+                        />
                     </div>
                     <div className="flex justify-end space-x-3">
                         <button 
@@ -336,7 +869,10 @@ export function ProjetsAdminPage() {
                         >
                             Annuler
                         </button>
-                        <button className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                        <button 
+                            onClick={handleCreateTask}
+                            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                        >
                             Ajouter
                         </button>
                     </div>
@@ -344,102 +880,114 @@ export function ProjetsAdminPage() {
             </div>
         </div>
     );
+};
+
 
     // Composant pour la modale d'édition de projet
-    const EditProjectModal = ({ onClose }) => (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-96">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Modifier le projet</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Nom du projet</label>
-                        <input 
-                            type="text" 
-                            defaultValue={selectedProjet?.titre || ""}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                        />
+    const EditProjectModal = ({ onClose }) => {
+        const [formData, setFormData] = useState({
+            titre: selectedProjet?.titre || '',
+            id_client: selectedProjet?.id_client || '',
+            date_d: selectedProjet?.date_d || '',
+            date_f: selectedProjet?.date_f || '',
+            status: selectedProjet?.status || 'planifie',
+        });
+
+        const handleSubmit = (e) => {
+            e.preventDefault();
+            handleUpdateProject(formData);
+        };
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold">Modifier le projet</h3>
+                        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Client</label>
-                        <input 
-                            type="text" 
-                            defaultValue={selectedProjet?.client?.nom || ""}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Adresse</label>
-                        <input 
-                            type="text" 
-                            defaultValue={selectedProjet?.adresse || ""}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Chef de projet</label>
-                        <select 
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            defaultValue={selectedProjet?.chef_projet?.nom || ""}
-                        >
-                            <option>Ahmed Ben Ali</option>
-                            <option>Karim Sasai</option>
-                            <option>Youssef Gharbi</option>
-                        </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Date de début</label>
+                            <label className="block text-sm font-medium text-gray-700">Nom du projet</label>
                             <input 
-                                type="date" 
-                                defaultValue={selectedProjet?.date_d || ""}
+                                type="text" 
+                                value={formData.titre}
+                                onChange={(e) => setFormData(prev => ({ ...prev, titre: e.target.value }))}
                                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
+                                required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Date de fin</label>
-                            <input 
-                                type="date" 
-                                defaultValue={selectedProjet?.date_f || ""}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                            />
+                            <label className="block text-sm font-medium text-gray-700">Client</label>
+                            <select 
+                                value={formData.id_client}
+                                onChange={(e) => setFormData(prev => ({ ...prev, id_client: e.target.value }))}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                required
+                            >
+                                <option value="">Sélectionner un client</option>
+                                {clients.map(client => (
+                                    <option key={client.id_client} value={client.id_client}>
+                                        {client.nom} {client.prenom}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Budget</label>
-                        <input 
-                            type="number" 
-                            defaultValue={selectedProjet?.budget || ""}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Description</label>
-                        <textarea 
-                            defaultValue={selectedProjet?.description || ""}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                            rows="3"
-                        ></textarea>
-                    </div>
-                    <div className="flex justify-end space-x-3">
-                        <button 
-                            onClick={onClose}
-                            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                        >
-                            Annuler
-                        </button>
-                        <button className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
-                            Enregistrer
-                        </button>
-                    </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Date de début</label>
+                                <input 
+                                    type="date" 
+                                    value={formData.date_d}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, date_d: e.target.value }))}
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Date de fin</label>
+                                <input 
+                                    type="date" 
+                                    value={formData.date_f}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, date_f: e.target.value }))}
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Statut</label>
+                            <select 
+                                value={formData.status}
+                                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            >
+                                <option value="planifie">Planifié</option>
+                                <option value="encours">En cours</option>
+                                <option value="termine">Terminé</option>
+                            </select>
+                        </div>
+                        <div className="flex justify-end space-x-3">
+                            <button 
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                            >
+                                Annuler
+                            </button>
+                            <button 
+                                type="submit"
+                                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                            >
+                                Enregistrer
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     // Composant DeleteConfirmationModal
     const DeleteConfirmationModal = ({ projet, onConfirm, onCancel }) => (
@@ -464,7 +1012,7 @@ export function ProjetsAdminPage() {
                             Annuler
                         </button>
                         <button 
-                            onClick={onConfirm}
+                            onClick={() => onConfirm(projet.id_projet)}
                             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                         >
                             Supprimer
@@ -476,96 +1024,194 @@ export function ProjetsAdminPage() {
     );
 
     // Composant AddProjectModal
-    const AddProjectModal = ({ onClose }) => (
+    const AddProjectModal = ({ onClose }) => {
+    const [formData, setFormData] = useState({
+        titre: '',
+        id_client: '',
+        type_projet: 'Intérieur',
+        date_d: '',
+        date_f: '',
+        status: 'encours',
+        favoris: false
+    });
+
+    const handleInputChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            // 1. Obtenir le cookie CSRF
+            await axios.get('http://localhost:8000/sanctum/csrf-cookie', {
+                withCredentials: true,
+            });
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // 2. Récupération du token CSRF
+            const getCSRFToken = () => {
+                const tokenCookie = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('XSRF-TOKEN='));
+                return tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : '';
+            };
+            const token = getCSRFToken();
+
+            // 3. Envoyer les données avec le bon token
+            const response = await axios.post('http://localhost:8000/api/projets', formData, {
+                withCredentials: true,
+                headers: {
+                    'X-XSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                }
+            });
+
+            // 4. Gérer la réponse
+            toast.success('Projet créé avec succès');
+            setRefresh(prev => prev + 1);
+            onClose();
+        } catch (error) {
+            console.error('Erreur création projet:', error);
+            if (error.response?.status === 419) {
+                toast.error('Session expirée, veuillez rafraîchir');
+            } else {
+                toast.error('Erreur lors de la création');
+            }
+        }
+    };
+
+    return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-96">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">Nouveau Projet</h3>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-                <div className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Nom du projet*</label>
-                        <input 
-                            type="text" 
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                            placeholder="Nom du projet"
+                        <input
+                            type="text"
+                            name="titre"
+                            value={formData.titre}
+                            onChange={handleInputChange}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            required
                         />
                     </div>
+                    
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Client*</label>
-                        <select className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                            <option>Sélectionner un client</option>
-                            <option>Pierre Durand</option>
-                            <option>Sophie Martin</option>
+                        <select
+                            name="id_client"
+                            value={formData.id_client}
+                            onChange={handleInputChange}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            required
+                        >
+                            <option value="">Sélectionner un client</option>
+                            {clients.map(client => (
+                                <option key={client.id_client} value={client.id_client}>
+                                    {client.nom} {client.prenom}
+                                </option>
+                            ))}
                         </select>
                     </div>
+                    
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Adresse*</label>
-                        <input 
-                            type="text" 
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                            placeholder="Adresse complète"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Chef de projet</label>
-                        <select className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                            <option>Sélectionner un chef</option>
-                            <option>Ahmed Ben Ali</option>
-                            <option>Leila Ben Amor</option>
+                        <label className="block text-sm font-medium text-gray-700">Type de projet</label>
+                        <select
+                            name="type_projet"
+                            value={formData.type_projet}
+                            onChange={handleInputChange}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                            <option value="Intérieur">Intérieur</option>
+                            <option value="Extérieur">Extérieur</option>
+                            <option value="Mixte">Mixte</option>
                         </select>
                     </div>
+                    
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Date de début*</label>
-                            <input 
-                                type="date" 
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
+                            <input
+                                type="date"
+                                name="date_d"
+                                value={formData.date_d}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Date de fin estimée*</label>
-                            <input 
-                                type="date" 
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
+                            <label className="block text-sm font-medium text-gray-700">Date de fin*</label>
+                            <input
+                                type="date"
+                                name="date_f"
+                                value={formData.date_f}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                required
                             />
                         </div>
                     </div>
+                    
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Budget (TND)</label>
-                        <input 
-                            type="number" 
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                            placeholder="Montant"
+                        <label className="block text-sm font-medium text-gray-700">Statut</label>
+                        <select
+                            name="status"
+                            value={formData.status}
+                            onChange={handleInputChange}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                            <option value="planifie">Planifié</option>
+                            <option value="encours">En cours</option>
+                            <option value="termine">Terminé</option>
+                        </select>
+                    </div>
+                    
+                    <div className="flex items-center">
+                        <input
+                            type="checkbox"
+                            name="favoris"
+                            checked={formData.favoris}
+                            onChange={handleInputChange}
+                            className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                         />
+                        <label className="ml-2 block text-sm text-gray-700">
+                            Marquer comme favori
+                        </label>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Description</label>
-                        <textarea 
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
-                            rows="3"
-                            placeholder="Détails du projet..."
-                        ></textarea>
-                    </div>
-                    <div className="flex justify-end space-x-3">
-                        <button 
+                    
+                    <div className="flex justify-end space-x-3 pt-4">
+                        <button
+                            type="button"
                             onClick={onClose}
                             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                         >
                             Annuler
                         </button>
-                        <button className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
-                            Créer Projet
+                        <button
+                            type="submit"
+                            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                        >
+                            Créer le projet
                         </button>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     );
-
+};
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -776,13 +1422,16 @@ export function ProjetsAdminPage() {
                                                                         }
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => handleToggleFavori(projet.id_projet)}
-                                                                        className={`p-1 rounded ${
-                                                                            projet.favoris ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-400 hover:text-gray-500'
-                                                                        }`}
-                                                                    >
-                                                                        {projet.favoris ? <Star className="w-4 h-4 fill-current" /> : <StarOff className="w-4 h-4" />}
-                                                                    </button>
+    onClick={(e) => {
+        e.stopPropagation(); // Empêche le toggle de l'expansion
+        handleToggleFavori(projet.id_projet);
+    }}
+    className={`p-1 rounded ${
+        projet.favoris ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-400 hover:text-gray-500'
+    }`}
+>
+    {projet.favoris ? <Star className="w-4 h-4 fill-current" /> : <StarOff className="w-4 h-4" />}
+</button>
                                                                     <div>
                                                                         <div className="text-sm font-medium text-gray-900">{projet.titre}</div>
                                                                         <div className="text-sm text-gray-500 flex items-center">
@@ -886,22 +1535,24 @@ export function ProjetsAdminPage() {
                                                                                     <span>Supprimer</span>
                                                                                 </button>
                                                                                 <button 
-                                                                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                                                                    onClick={() => {
-                                                                                        setSelectedProjetForTask(projet);
-                                                                                        setShowTaskModal(true);
-                                                                                        setShowActionsMenu(null);
-                                                                                    }}
-                                                                                >
-                                                                                    <Plus className="w-4 h-4 mr-2" />
-                                                                                    <span>Ajouter Tâche</span>
-                                                                                </button>
+  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+  onClick={() => {
+    setSelectedProjetForTask(projet);
+    setShowProjectTypeModal(true); // ou un modal pour sélectionner type_projet
+    setShowActionsMenu(null);
+  }}
+>
+  <Plus className="w-4 h-4 mr-2" />
+  <span>Ajouter Tâche</span>
+</button>
+
                                                                             </div>
                                                                         )}
                                                                     </div>
                                                                 </div>
                                                             </td>
                                                         </tr>
+                                                        
                                                         
                                                         {/* Expanded tasks section */}
                                                         {expandedProjects[projet.id_projet] && (
@@ -938,66 +1589,121 @@ export function ProjetsAdminPage() {
                                                                                 </div>
                                                                             </div>
                                                                             
-                                                                            {/* Tâches du projet */}
-                                                                            <div className="lg:col-span-2">
-                                                                                <div className="bg-white rounded-lg border border-gray-200 p-5">
-                                                                                    <div className="flex justify-between items-center mb-4">
-                                                                                        <h4 className="font-semibold text-lg">Tâches du Projet</h4>
-                                                                                        <button 
-                                                                                            onClick={() => {
-                                                                                                setSelectedProjetForTask(projet);
-                                                                                                setShowTaskModal(true);
-                                                                                            }}
-                                                                                            className="flex items-center space-x-1 text-purple-600 hover:text-purple-800"
-                                                                                        >
-                                                                                            <Plus size={16} />
-                                                                                            <span>Ajouter une tâche</span>
-                                                                                        </button>
-                                                                                    </div>
-                                                                                    
-                                                                                    <div className="space-y-4">
-                                                                                        {projet.taches.map((tache) => (
-                                                                                            <div key={tache.id} className="border border-gray-200 rounded-lg p-4">
-                                                                                                <div className="flex justify-between items-start">
-                                                                                                    <h5 className="font-medium text-gray-900">{tache.nom}</h5>
-                                                                                                    {getStatusBadge(tache.status)}
-                                                                                                </div>
-                                                                                                
-                                                                                                <div className="mt-3 flex items-center text-sm text-gray-600">
-                                                                                                    <User size={14} className="mr-2 text-gray-400" />
-                                                                                                    <span>Assigné à {tache.assignee}</span>
-                                                                                                </div>
-                                                                                                
-                                                                                                <div className="mt-2 flex items-center text-sm text-gray-600">
-                                                                                                    <Calendar size={14} className="mr-2 text-gray-400" />
-                                                                                                    <span>{formatDate(tache.date_d)} - {formatDate(tache.date_f)}</span>
-                                                                                                </div>
-                                                                                                
-                                                                                                {tache.notes && (
-                                                                                                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                                                                                                        <p className="text-sm text-gray-600">{tache.notes}</p>
-                                                                                                    </div>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        ))}
-                                                                                        
-                                                                                        <div 
-                                                                                            className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex items-center justify-center hover:bg-gray-50 transition-colors cursor-pointer"
-                                                                                            onClick={() => {
-                                                                                                setSelectedProjetForTask(projet);
-                                                                                                setShowTaskModal(true);
-                                                                                            }}
-                                                                                        >
-                                                                                            <button 
-                                                                                                className="flex flex-col items-center text-gray-500 hover:text-purple-600"
-                                                                                            >
-                                                                                                <Plus className="w-8 h-8" />
-                                                                                                <span className="mt-2">Ajouter une tâche</span>
-                                                                                            </button>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
+                                                                           {/* Tâches du projet */}
+<div className="lg:col-span-2">
+  <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+    <div className="flex justify-between items-center mb-4">
+      <h4 className="font-semibold text-lg text-purple-800">Tâches du Projet</h4>
+      <button 
+        onClick={() => {
+          setSelectedProjetForTask(projet);
+          setShowProjectTypeModal(true);
+        }}
+        className="flex items-center space-x-1 text-purple-600 hover:text-purple-800 transition"
+      >
+        <Plus size={16} />
+        <span>Ajouter une tâche</span>
+      </button>
+    </div>
+    
+    <div className="space-y-4">
+      {projet.taches && projet.taches.length > 0 ? (
+        projet.taches.map((tache) => (
+          <div key={tache.id} className="border border-purple-100 rounded-lg p-4 hover:shadow-md transition-shadow bg-gray-50">
+            <div className="flex justify-between items-start">
+              <div>
+                <h5 className="font-medium text-purple-900">{tache.nom_tache}</h5>
+                {tache.description && (
+                  <p className="text-sm text-gray-600 mt-1">{tache.description}</p>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                {getStatusBadge(tache.statut)}
+                <button 
+                  onClick={() => handleEditTask(tache, projet)}
+                  className="text-blue-500 hover:text-blue-700"
+                  title="Modifier"
+                >
+                  <Edit size={16} />
+                </button>
+                <button 
+                  onClick={() => handleDeleteTask(tache)}
+                  className="text-red-500 hover:text-red-700"
+                  title="Supprimer"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+              <div className="flex items-center">
+                <User size={14} className="mr-2 text-gray-400" />
+                <span>Assigné à: {tache.assignee_id ? (
+                  staticChefs.concat(staticPeintres).find(p => p.id == tache.assignee_id)?.nom || 'Non assigné'
+                ) : 'Non assigné'}</span>
+              </div>
+              
+              <div className="flex items-center">
+                <Calendar size={14} className="mr-2 text-gray-400" />
+                <span>{formatDate(tache.date_debut)} - {formatDate(tache.date_fin)}</span>
+              </div>
+              
+              <div className="flex items-center">
+                <ClipboardList size={14} className="mr-2 text-gray-400" />
+                <span>Type: {tache.type_projet === 'grand' ? 'Grand projet' : 'Petit projet'}</span>
+              </div>
+            </div>
+            
+            {tache.notes && (
+              <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
+                <p className="text-sm text-gray-600">{tache.notes}</p>
+              </div>
+            )}
+          </div>
+        ))
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-gray-500">Aucune tâche n'a été créée pour ce projet</p>
+        </div>
+      )}
+      
+      <div 
+        className="border-2 border-dashed border-purple-300 rounded-lg p-6 flex items-center justify-center hover:bg-purple-50 transition-colors cursor-pointer"
+        onClick={() => {
+          setSelectedProjetForTask(projet);
+          setShowProjectTypeModal(true);
+        }}
+      >
+        <button 
+          className="flex flex-col items-center text-gray-500 hover:text-purple-600"
+        >
+          <Plus className="w-8 h-8" />
+          <span className="mt-2">Ajouter une tâche</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {/* ✅ Intégration des modales */}
+  <EditTaskModal
+    show={showEditTaskModal}
+    onClose={() => setShowEditTaskModal(false)}
+    task={selectedTask}
+    onSuccess={() => {
+      fetchProjets(); // met à jour la liste
+      toast.success("Tâche modifiée avec succès");
+    }}
+  />
+
+ <DeleteTaskModal
+        show={showDeleteTaskModal}
+        onClose={() => setShowDeleteTaskModal(false)}
+        task={selectedTask}
+        onSuccess={handleSuccessDelete}
+      />
+</div>
+
                                                                         </div>
                                                                     </div>
                                                                 </td>
@@ -1026,14 +1732,32 @@ export function ProjetsAdminPage() {
                     </div>
                 </div>
             </div>
+            {/* Modal de succès */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg max-w-sm text-center">
+            <h2 className="text-xl font-bold mb-4">Succès</h2>
+            <p>La tâche a été créée avec succès !</p>
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
 
             {/* Modals */}
-            {showTaskModal && <AddTaskModal onClose={() => setShowTaskModal(false)} />}
+            {showProjectTypeModal && <ProjectTypeModal onClose={() => setShowProjectTypeModal(false)} />}
+            {showTaskModal && <AddTaskModal onClose={() => setShowTaskModal(false)} taskFormData={taskFormData} 
+setFormData={setTaskFormData}
+  selectedProjetForTask={selectedProjetForTask}/>}
             {showEditModal && <EditProjectModal onClose={() => setShowEditModal(false)} />}
             {showDeleteModal && (
                 <DeleteConfirmationModal 
                     projet={projetToDelete}
-                    onConfirm={() => handleDeleteProjet(projetToDelete.id_projet)}
+                    onConfirm={handleDeleteProject}
                     onCancel={() => setShowDeleteModal(false)}
                 />
             )}

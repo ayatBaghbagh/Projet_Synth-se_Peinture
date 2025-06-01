@@ -13,6 +13,8 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\ListeDemandeDevisController;
+use App\Http\Controllers\ProjetAutoController;
+use App\Http\Controllers\TacheProjetController;
 
 use Illuminate\Support\Facades\Mail;
 
@@ -75,6 +77,9 @@ Route::get('/nations', [PaysController::class, 'nations']);
 Route::get('/villes', [PaysController::class, 'villes']);
 
 Route::apiResource('contacts', ContactController::class)->only(['store']);
+Route::apiResource('contactss', ContactController::class);
+
+Route::delete('/contacts/{contact}', [ContactController::class, 'destroy']);
 
 // Route de test pour vérifier la connectivité
 Route::get('/test', function() {
@@ -145,9 +150,10 @@ Route::post('demandes/{id}/creer-devis', [DemandeDevisController::class, 'creerD
 Route::apiResource('devis', DevisController::class)->only(['index', 'show', 'destroy']);
 Route::middleware('auth:sanctum')->prefix('client')->group(function () {
     Route::get('/mes-devis', [ClientAuthController::class, 'mesDevis']);
+    Route::get('/mes-projets', [ClientAuthController::class, 'mesProjetsC']);
     Route::put('/devis/{id}/status', [ClientAuthController::class, 'updateDevisStatus']);
 });
-
+Route::get('/taches-projet/{projetId}', [TacheProjetController::class, 'getTachesByProjet']);
 // Test de connexion API (accessible sans authentification)
 Route::get('/test', [ClientAuthController::class, 'test']);
 
@@ -198,4 +204,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/mes-projets', [ClientAuthController::class, 'mesProjets']);
     Route::put('/devis/{id}/status', [ClientAuthController::class, 'updateDevisStatus']);
 });
+Route::get('/diagnostiquer-projets', [ProjetAutoController::class, 'diagnostiquer']);
+Route::get('/synchroniser-projets', [ProjetAutoController::class, 'synchroniserProjets']);
 
+Route::resource('taches-projet', TacheProjetController::class);
+
+// Routes spéciales pour les boutons
+Route::get('taches-projet/create/grand', [TacheProjetController::class, 'create'])
+     ->name('taches-projet.create.grand')
+     ->defaults('type_projet', 'grand');
+
+Route::get('taches-projet/create/petit', [TacheProjetController::class, 'create'])
+     ->name('taches-projet.create.petit')
+     ->defaults('type_projet', 'petit');
+Route::get('/projets/{projet}/taches', [TacheProjetController::class, 'getTachesByProjet']);

@@ -7,18 +7,39 @@ use Illuminate\Http\Request;
 
 class ProjetController extends Controller
 {
-  public function index()
-{
-    // Récupère TOUS les projets
-    $projets = Projet::all(); // Variable correctement nommée
+ public function index()
+    {
+        try {
+            $projets = Projet::with(['client', 'devis'])->get()->map(function ($projet) {
+                return [
+                    'id_projet' => $projet->id_projet,
+                    'titre' => $projet->titre,
+                    'adresse' => optional($projet->client)->adresse ?? 'Non spécifiée',
+                    'client' => optional($projet->client)->only(['nom', 'prenom']),
+                    'status' => $projet->status,
+                    'budget' => $projet->devis->montant_total ?? 0,
+                    'date_d' => $projet->date_d,
+                    'date_f' => $projet->date_f,
+                    'favoris' => (bool)$projet->favoris,
+                    'description' => $projet->description ?? 'Aucune description',
+                    // Ajoutez d'autres champs nécessaires
+                ];
+            });
 
-    $projets->transform(function ($projet) {
-        $projet->image = asset('storage/images/' . $projet->image);
-        return $projet;
-    });
+            return response()->json($projets, 200, [
+                'Content-Type' => 'application/json; charset=utf-8'
+            ]);
 
-    return response()->json($projets); // Retourne tous les projets
-}
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Erreur serveur',
+                'message' => $e->getMessage()
+            ], 500, [
+                'Content-Type' => 'application/json; charset=utf-8'
+            ]);
+        }
+    }
+
 // Nouvelle méthode pour les favoris
     public function favoris() {
     try {

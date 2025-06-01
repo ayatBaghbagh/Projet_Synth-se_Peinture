@@ -1,459 +1,403 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Plus, 
-  Filter, 
-  Calendar,
-  MapPin,
-  User,
-  DollarSign,
-  Clock,
-  Star,
-  StarOff,
-  Eye,
-  Edit,
-  Trash2,
-  MoreVertical,
-  CheckCircle,
-  XCircle,
-  AlertCircle
-} from 'lucide-react';
+import { Calendar, MapPin, User, Phone, Camera, CheckCircle, Clock, AlertCircle, ArrowLeft, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-export const ProjetsAdminPage = () => {
-  const [projets, setProjets] = useState([]);
-  const [filteredProjets, setFilteredProjets] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('Tous les Projets');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [selectedProjet, setSelectedProjet] = useState(null);
+export const MesProjet = () => {
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [client, setClient] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  const filterOptions = [
-    { key: 'all', label: 'Tous les Projets', icon: Filter },
-    { key: 'encours', label: 'En Cours', icon: Clock },
-    { key: 'termine', label: 'Terminés', icon: CheckCircle },
-    { key: 'favoris', label: 'À Affecter', icon: Star }
-  ];
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    const clientData = localStorage.getItem('client');
+    
+    if (!token || !clientData) {
+      navigate('/login');
+      return;
+    }
 
-  const statusConfig = {
-    'encours': { 
-      label: 'En cours', 
-      color: 'bg-blue-100 text-blue-800 border-blue-200',
-      icon: Clock,
-      bgColor: 'bg-blue-500'
-    },
-    'termine': { 
-      label: 'Terminé', 
-      color: 'bg-green-100 text-green-800 border-green-200',
-      icon: CheckCircle,
-      bgColor: 'bg-green-500'
-    },
-    'planifie': { 
-      label: 'Planifié', 
-      color: 'bg-orange-100 text-orange-800 border-orange-200',
-      icon: Calendar,
-      bgColor: 'bg-orange-500'
+    try {
+      setClient(JSON.parse(clientData));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } catch (e) {
+      console.error('Erreur parsing client data:', e);
+      navigate('/login');
+      return;
+    }
+
+    fetchProjects();
+  }, [navigate]);
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('auth_token');
+      
+      const response = await axios.get('http://localhost:8000/api/client/mes-projets', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
+      });
+
+      if (response.data.success) {
+        setProjects(response.data.projets);
+        // Fetch tasks for each project
+        await fetchTasksForProjects(response.data.projets);
+      } else {
+        setError('Erreur lors de la récupération des projets');
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('client');
+        navigate('/login');
+      } else {
+        setError('Erreur de connexion au serveur');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Données statiques pour démonstration
-  const projetsData = [
-    {
-      id_projet: 1,
-      titre: 'Villa Moderne',
-      client: { nom: 'Pierre Durand' },
-      chef_projet: { nom: 'Ahmed Ben Ali' },
-      adresse: '123 Rue des Roses, Tunis',
-      description: 'Peinture complète d\'une villa moderne avec finitions haut de gamme',
-      budget: 5000,
-      date_d: '2024-05-10',
-      date_f: '2024-05-30',
-      status: 'encours',
-      avancement: 75,
-      image: '/api/placeholder/300/200',
-      favoris: true,
-      taches: [
-        { id: 1, nom: 'Préparation des murs', status: 'termine', date_limite: '2024-05-15' },
-        { id: 2, nom: 'Application première couche', status: 'encours', date_limite: '2024-05-20' },
-        { id: 3, nom: 'Finitions décoratives', status: 'planifie', date_limite: '2024-05-25' }
-      ]
-    },
-    {
-      id_projet: 2,
-      titre: 'Appartement Centre-ville',
-      client: { nom: 'Sophie Leroy' },
-      chef_projet: { nom: 'Mohamed Tourni' },
-      adresse: '45 Avenue Habib Bourguiba, Tunis',
-      description: 'Rénovation peinture appartement 3 pièces',
-      budget: 2500,
-      date_d: '2024-05-05',
-      date_f: '2024-05-20',
-      status: 'termine',
-      avancement: 100,
-      image: '/api/placeholder/300/200',
-      favoris: false,
-      taches: [
-        { id: 1, nom: 'Préparation', status: 'termine', date_limite: '2024-05-08' },
-        { id: 2, nom: 'Peinture salon', status: 'termine', date_limite: '2024-05-12' },
-        { id: 3, nom: 'Peinture chambres', status: 'termine', date_limite: '2024-05-18' }
-      ]
-    },
-    {
-      id_projet: 3,
-      titre: 'Bureau Commercial',
-      client: { nom: 'Jean Dupont' },
-      chef_projet: { nom: 'Ahmed Ben Ali' },
-      adresse: '78 Rue du Commerce, Sousse',
-      description: 'Peinture bureaux commerciaux - 500m²',
-      budget: 3500,
-      date_d: '2024-06-01',
-      date_f: '2024-06-15',
-      status: 'planifie',
-      avancement: 0,
-      image: '/api/placeholder/300/200',
-      favoris: false,
-      taches: []
-    },
-    {
-      id_projet: 4,
-      titre: 'Résidence Les Oliviers',
-      client: { nom: 'Marie Martin' },
-      chef_projet: { nom: 'Non assigné' },
-      adresse: 'Résidence Les Oliviers, Ariana',
-      description: 'Peinture complète d\'un immeuble de 10 appartements',
-      budget: 15000,
-      date_d: '2024-06-10',
-      date_f: '2024-07-15',
-      status: 'planifie',
-      avancement: 0,
-      image: '/api/placeholder/300/200',
-      favoris: true,
-      taches: []
-    }
-  ];
-
-  useEffect(() => {
-    // Simulation du chargement des données
-    setTimeout(() => {
-      setProjets(projetsData);
-      setFilteredProjets(projetsData);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
-
-  useEffect(() => {
-    let filtered = projets;
-
-    // Filtrage par statut
-    if (selectedFilter !== 'Tous les Projets') {
-      const filterKey = filterOptions.find(f => f.label === selectedFilter)?.key;
-      if (filterKey === 'favoris') {
-        filtered = filtered.filter(p => p.favoris || p.chef_projet?.nom === 'Non assigné');
-      } else if (filterKey !== 'all') {
-        filtered = filtered.filter(p => p.status === filterKey);
+  const fetchTasksForProjects = async (projects) => {
+    const token = localStorage.getItem('auth_token');
+    const tasksData = {};
+    
+    for (const project of projects) {
+      try {
+        const response = await axios.get(`http://localhost:8000/api/taches-projet/${project.id_projet}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        tasksData[project.id_projet] = response.data;
+      } catch (error) {
+        console.error(`Erreur lors de la récupération des tâches pour le projet ${project.id_projet}:`, error);
+        tasksData[project.id_projet] = [];
       }
     }
+    
+    setTasks(tasksData);
+  };
 
-    // Filtrage par recherche
-    if (searchTerm) {
-      filtered = filtered.filter(p => 
-        p.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.client?.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.chef_projet?.nom.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  const logout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('client');
+    navigate('/');
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'termine': return 'text-green-600 bg-green-50';
+      case 'encours': return 'text-blue-600 bg-blue-50';
+      case 'en_attente': return 'text-yellow-600 bg-yellow-50';
+      default: return 'text-gray-600 bg-gray-50';
     }
-
-    setFilteredProjets(filtered);
-  }, [projets, selectedFilter, searchTerm]);
-
-  const handleToggleFavori = (id) => {
-    setProjets(prev => prev.map(p => 
-      p.id_projet === id ? { ...p, favoris: !p.favoris } : p
-    ));
   };
 
   const getStatusIcon = (status) => {
-    const config = statusConfig[status];
-    const IconComponent = config?.icon || AlertCircle;
-    return <IconComponent className="w-4 h-4" />;
+    switch (status) {
+      case 'termine': return <CheckCircle className="w-4 h-4" />;
+      case 'encours': return <Clock className="w-4 h-4" />;
+      case 'en_attente': return <AlertCircle className="w-4 h-4" />;
+      default: return <AlertCircle className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'termine': return 'Terminé';
+      case 'encours': return 'En cours';
+      case 'en_attente': return 'En attente';
+      default: return 'Inconnu';
+    }
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    if (!dateString) return 'Non définie';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR');
   };
 
-  const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'TND', // ✅ Le vrai code ISO du dinar tunisien
-    minimumFractionDigits: 0
-  }).format(amount);
-};
-
-  const getTotalStats = () => {
-    const total = projets.length;
-    const enCours = projets.filter(p => p.status === 'encours').length;
-    const termines = projets.filter(p => p.status === 'termine').length;
-    const aAffecter = projets.filter(p => p.favoris || p.chef_projet?.nom === 'Non assigné').length;
-    
-    return { total, enCours, termines, aAffecter };
+  const calculateProgress = (status) => {
+    switch (status) {
+      case 'termine': return 100;
+      case 'encours': return 65;
+      case 'en_attente': return 10;
+      default: return 0;
+    }
   };
 
-  const stats = getTotalStats();
+  const filteredProjects = projects.filter(project => {
+    if (statusFilter === 'all') return true;
+    return project.status === statusFilter;
+  });
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des projets...</p>
+      <div className="flex min-h-screen bg-gray-50 items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <span className="text-gray-600">Chargement des projets...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gestion des Projets</h1>
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className="w-64 bg-white shadow-lg">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+              AP
             </div>
-            <button 
-              onClick={() => setShowAddModal(true)}
-              className="bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 flex items-center space-x-2 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nouveau Projet</span>
-            </button>
+            <div>
+              <h2 className="font-semibold text-gray-900">ArtisanPeinture</h2>
+              <p className="text-sm text-gray-500">Espace Client</p>
+            </div>
           </div>
+          {client && (
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-900">{client.prenom} {client.nom}</p>
+              <p className="text-xs text-gray-500">{client.email}</p>
+            </div>
+          )}
         </div>
+
+        <nav className="mt-6">
+          <div className="px-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              Menu
+            </p>
+            <ul className="space-y-1">
+              <li>
+                <button
+                  onClick={() => navigate('/profile')}
+                  className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100"
+                >
+                  <User className="w-4 h-4 mr-3" />
+                  Mon Profil
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => navigate('/mes-devis')}
+                  className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100"
+                >
+                  <AlertCircle className="w-4 h-4 mr-3" />
+                  Mes Devis
+                </button>
+              </li>
+              <li>
+                <a href="#" className="flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-500 rounded-md">
+                  <Calendar className="w-4 h-4 mr-3" />
+                  Mes Projets
+                </a>
+              </li>
+              <li>
+                <button
+                  onClick={logout}
+                  className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-3" />
+                  Déconnexion
+                </button>
+              </li>
+            </ul>
+          </div>
+        </nav>
       </div>
 
-      {/* Filters and Search */}
-      <div className="px-6 py-6">
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {filterOptions.map((option) => {
-              const IconComponent = option.icon;
-              const isActive = selectedFilter === option.label;
-              
-              return (
+      {/* Main Content */}
+      <div className="flex-1 p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Projets</h1>
+                <p className="text-gray-600">Suivez l'avancement de vos projets de peinture</p>
+              </div>
+              <div className="flex space-x-2">
                 <button
-                  key={option.key}
-                  onClick={() => setSelectedFilter(option.label)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                  }`}
+                  onClick={() => setStatusFilter('all')}
+                  className={`px-4 py-2 rounded-md ${statusFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
                 >
-                  <IconComponent className="w-4 h-4" />
-                  <span>{option.label}</span>
+                  Tous
                 </button>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="relative">
-              <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher un projet..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg w-80 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            
-            <div className="flex items-center space-x-6 text-sm">
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-500">Total:</span>
-                <span className="font-semibold text-gray-900">{stats.total}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-500">En cours:</span>
-                <span className="font-semibold text-blue-600">{stats.enCours}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-500">Terminés:</span>
-                <span className="font-semibold text-green-600">{stats.termines}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-500">À affecter:</span>
-                <span className="font-semibold text-red-600">{stats.aAffecter}</span>
+                <button
+                  onClick={() => setStatusFilter('en_attente')}
+                  className={`px-4 py-2 rounded-md ${statusFilter === 'en_attente' ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+                >
+                  En attente
+                </button>
+                <button
+                  onClick={() => setStatusFilter('encours')}
+                  className={`px-4 py-2 rounded-md ${statusFilter === 'encours' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+                >
+                  En cours
+                </button>
+                <button
+                  onClick={() => setStatusFilter('termine')}
+                  className={`px-4 py-2 rounded-md ${statusFilter === 'termine' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+                >
+                  Terminés
+                </button>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Projects List */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-lg shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Liste des Projets</h3>
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+              {error}
             </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Projet
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Client
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Chef de Projet
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Statut
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Avancement
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Budget
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Période
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredProjets.map((projet) => (
-                    <tr key={projet.id_projet} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => handleToggleFavori(projet.id_projet)}
-                            className={`p-1 rounded ${
-                              projet.favoris ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-400 hover:text-gray-500'
-                            }`}
-                          >
-                            {projet.favoris ? <Star className="w-4 h-4 fill-current" /> : <StarOff className="w-4 h-4" />}
-                          </button>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{projet.titre}</div>
-                            <div className="text-sm text-gray-500 flex items-center">
-                              <MapPin className="w-3 h-3 mr-1" />
-                              {projet.adresse}
+          )}
+
+          {filteredProjects.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+              <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun projet trouvé</h3>
+              <p className="text-gray-500">Aucun projet ne correspond à votre filtre.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {filteredProjects.map((project) => (
+                <div key={project.id_projet} className="bg-white rounded-lg shadow-lg overflow-hidden">
+                  {/* Project Header */}
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h2 className="text-xl font-semibold text-gray-900">{project.titre}</h2>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                            {getStatusText(project.status)}
+                          </span>
+                        </div>
+                        <p className="text-gray-600 mb-4">
+                          {project.description || 'Projet de peinture'}
+                        </p>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Type: {project.type_projet || 'Non spécifié'}
+                        </p>
+                        
+                        {/* Progress Bar */}
+                        <div className="mb-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm text-gray-500">Avancement</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {calculateProgress(project.status)}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                project.status === 'termine' ? 'bg-green-500' :
+                                project.status === 'encours' ? 'bg-blue-500' :
+                                'bg-yellow-500'
+                              }`}
+                              style={{ width: `${calculateProgress(project.status)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        {/* Project Info */}
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div className="flex items-center text-gray-600">
+                            <Calendar className="w-4 h-4 mr-2" />
+                            <div>
+                              <p className="text-gray-500">Début</p>
+                              <p className="font-medium">{formatDate(project.date_d)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center text-gray-600">
+                            <Calendar className="w-4 h-4 mr-2" />
+                            <div>
+                              <p className="text-gray-500">Fin prévue</p>
+                              <p className="font-medium">{formatDate(project.date_f)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center text-gray-600">
+                            <MapPin className="w-4 h-4 mr-2" />
+                            <div>
+                              <p className="text-gray-500">Adresse</p>
+                              <p className="font-medium">{project.adresse || 'Non spécifiée'}</p>
                             </div>
                           </div>
                         </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <User className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <span className="text-sm font-medium text-gray-900">{projet.client?.nom}</span>
+                      </div>
+
+                      <div className="ml-6 text-right">
+                        <div className="text-2xl font-bold text-gray-900 mb-1">
+                          €{project.budget ? project.budget.toLocaleString() : '0'}
                         </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white ${
-                            projet.chef_projet?.nom === 'Non assigné' ? 'bg-red-400' : 'bg-green-400'
-                          }`}>
-                            {projet.chef_projet?.nom === 'Non assigné' ? '?' : 
-                             projet.chef_projet?.nom.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </div>
-                          <span className={`text-sm ${
-                            projet.chef_projet?.nom === 'Non assigné' ? 'text-red-600 font-medium' : 'text-gray-900'
-                          }`}>
-                            {projet.chef_projet?.nom}
-                          </span>
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                          statusConfig[projet.status]?.color || 'bg-gray-100 text-gray-800 border-gray-200'
-                        }`}>
-                          {getStatusIcon(projet.status)}
-                          <span>{statusConfig[projet.status]?.label || projet.status}</span>
-                        </span>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full ${statusConfig[projet.status]?.bgColor || 'bg-gray-400'}`}
-                              style={{ width: `${projet.avancement}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium text-gray-900">{projet.avancement}%</span>
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-1">
-                          <DollarSign className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-900">{formatCurrency(projet.budget)}</span>
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          <div>{formatDate(projet.date_d)}</div>
-                          <div className="text-gray-500">
-                            {projet.date_f ? formatDate(projet.date_f) : '—'}
-                          </div>
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4 text-right">
-                        <div className="relative inline-block">
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                            <MoreVertical className="w-4 h-4 text-gray-400" />
+                        <div className="text-sm text-gray-500 mb-4">Budget total</div>
+                        <div className="flex space-x-2">
+                          <button className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center">
+                            <Camera className="w-4 h-4 mr-2" />
+                            Photos
                           </button>
-                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 hidden group-hover:block">
-                            <button className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                              <Eye className="w-4 h-4" />
-                              <span>Voir détails</span>
-                            </button>
-                            <button 
-                              onClick={() => {
-                                setSelectedProjet(projet);
-                                setShowTaskModal(true);
-                              }}
-                              className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                            >
-                              <Plus className="w-4 h-4" />
-                              <span>Ajouter tâche</span>
-                            </button>
-                            <button className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                              <Edit className="w-4 h-4" />
-                              <span>Modifier</span>
-                            </button>
-                            <button className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                              <Trash2 className="w-4 h-4" />
-                              <span>Supprimer</span>
-                            </button>
-                          </div>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Project Tasks */}
+                  <div className="p-6 border-t border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Tâches du projet</h3>
+                    {tasks[project.id_projet]?.length > 0 ? (
+                      <div className="space-y-3">
+                        {tasks[project.id_projet].map((task) => (
+                          <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className={`p-1 rounded-full ${
+                                task.statut === 'terminee' ? 'text-green-600 bg-green-50' :
+                                task.statut === 'en_cours' ? 'text-blue-600 bg-blue-50' :
+                                'text-yellow-600 bg-yellow-50'
+                              }`}>
+                                {task.statut === 'terminee' ? <CheckCircle className="w-4 h-4" /> :
+                                 task.statut === 'en_cours' ? <Clock className="w-4 h-4" /> :
+                                 <AlertCircle className="w-4 h-4" />}
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{task.nom_tache}</p>
+                                <p className="text-sm text-gray-500">
+                                  {formatDate(task.date_debut)} - {formatDate(task.date_fin)}
+                                </p>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              task.statut === 'terminee' ? 'text-green-600 bg-green-50' :
+                              task.statut === 'en_cours' ? 'text-blue-600 bg-blue-50' :
+                              'text-yellow-600 bg-yellow-50'
+                            }`}>
+                              {task.statut === 'terminee' ? 'Terminée' :
+                               task.statut === 'en_cours' ? 'En cours' :
+                               'À faire'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500">
+                        Aucune tâche disponible pour ce projet
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

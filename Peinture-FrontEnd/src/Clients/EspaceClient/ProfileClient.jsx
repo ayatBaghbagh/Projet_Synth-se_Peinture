@@ -1,17 +1,12 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, Edit3, Mail, Phone, MapPin, Building, User, Calendar,
-  FileText, Folder, Bell, Settings, LogOut, Save, X, Home
+  User, Home, FileText, FolderOpen, Bell, LogOut, 
+  Edit3, Mail, Phone, MapPin, Building, Calendar, Save, X
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MesDevisPage } from './MesDevisPage';
 
-export function ProfileClient({ onNavigate, userData }) {
-  const navigate = useNavigate();
-  
-  // État initial avec des valeurs par défaut
+export function ProfileClient() {
   const [user, setUser] = useState({
     id: '',
     prenom: '',
@@ -36,74 +31,193 @@ export function ProfileClient({ onNavigate, userData }) {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ ...user });
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [csrfToken, setCsrfToken] = useState('');
+  
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Fonction pour récupérer les données du profil
+  const API_BASE_URL = 'http://localhost:8000/api';
+
+  // Navigation items (identique à MesDevisPage)
+  const navigationItems = [
+    { icon: Home, label: 'Dashboard', path: '/dashboard' },
+    { icon: User, label: 'Mon Profil', path: '/profile', protected: true },
+    { icon: FileText, label: 'Mes Devis', path: '/mesdevis', protected: true },
+    { icon: FolderOpen, label: 'Mes Projets', path: '/mes-projets', protected: true },
+    { icon: Bell, label: 'Notifications', path: '/notifications' },
+  ];
+
+  // Fonctions pour gérer les tokens (identique à MesDevisPage)
+  const getCSRFToken = () => {
+    const tokenCookie = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('XSRF-TOKEN='));
+      
+    if (tokenCookie) {
+      return decodeURIComponent(tokenCookie.split('=')[1]);
+    }
+    return '';
+  };
+
+  const getAuthToken = () => {
+    return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+  };
+
+  const getHeaders = () => {
+    const authToken = getAuthToken();
+    const csrfToken = getCSRFToken();
+    
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+      ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken })
+    };
+  };
+
+  // Initialisation CSRF et auth (identique à MesDevisPage)
+  const initializeApp = async () => {
+    try {
+      // 1. Récupérer le cookie CSRF
+      await fetch(`${API_BASE_URL}/../sanctum/csrf-cookie`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      // 2. Mettre à jour le token CSRF
+      const token = getCSRFToken();
+      setCsrfToken(token);
+      
+      // 3. Vérifier l'authentification
+      const authToken = getAuthToken();
+      if (!authToken) {
+        localStorage.setItem('redirectAfterLogin', '/profile');
+        navigate('/login');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Erreur initialisation CSRF:', error);
+      setError('Erreur de connexion au serveur');
+      return false;
+    }
+  };
+
+  // Charger les données du profil
   const fetchProfile = async () => {
     try {
-      const token = localStorage.getItem('client_token');
-      
-      if (!token) {
+      const initialized = await initializeApp();
+      if (!initialized) return;
+
+      const response = await fetch(`${API_BASE_URL}/client/profile`, {
+        method: 'GET',
+        headers: getHeaders(),
+        credentials: 'include'
+      });
+
+      if (response.status === 401) {
+        setError('Session expirée. Veuillez vous reconnecter.');
+        localStorage.removeItem('auth_token');
+        sessionStorage.removeItem('auth_token');
+        localStorage.setItem('redirectAfterLogin', '/profile');
         navigate('/login');
         return;
       }
 
-      const response = await axios.get('http://localhost:8000/api/client/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-        withCredentials: true
-      });
+      if (response.status === 419) {
+        const refreshed = await initializeApp();
+        if (refreshed) {
+          return fetchProfile();
+        }
+        throw new Error('Erreur CSRF persistante. Veuillez recharger la page.');
+      }
 
-      if (response.data.success && response.data.client) {
-        const clientData = response.data.client;
-        setUser(clientData);
-        setEditData(clientData);
-        setError('');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-    } catch (error) {
-      console.error('Erreur lors de la récupération du profil:', error);
+
+      const data = await response.json();
       
-      if (error.response?.status === 401) {
-        // Token invalide ou expiré
-        localStorage.removeItem('client_token');
-        localStorage.removeItem('client');
-        navigate('/login');
+      if (data.success && data.client) {
+        setUser(data.client);
+        setEditData(data.client);
       } else {
-        setError('Erreur lors du chargement du profil');
+        throw new Error(data.message || 'Erreur lors du chargement du profil');
       }
+    } catch (err) {
+      console.error('Erreur lors du chargement du profil:', err);
+      setError(err.message || 'Erreur lors du chargement du profil');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // Récupérer les données au montage du composant
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
+  // Gestion de la déconnexion (identique à MesDevisPage)
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem('client_token');    
-      if (token) {
-        await axios.post('http://localhost:8000/api/client/logout', {}, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-          },
-          withCredentials: true
-        });
-      }
+      await fetch(`${API_BASE_URL}/client/logout`, {
+        method: 'POST',
+        headers: getHeaders(),
+        credentials: 'include'
+      });
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
     } finally {
-      localStorage.removeItem('client_token');
+      localStorage.removeItem('auth_token');
       localStorage.removeItem('client');
-      delete axios.defaults.headers.common['Authorization'];
+      sessionStorage.removeItem('auth_token');
       navigate('/login');
     }
+  };
+
+  // Sauvegarder les modifications
+  const handleSave = async () => {
+    try {
+      setError('');
+      setIsLoading(true);
+      
+      const response = await fetch(`${API_BASE_URL}/client/profile`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        credentials: 'include',
+        body: JSON.stringify(editData)
+      });
+
+      if (response.status === 401) {
+        setError('Session expirée. Veuillez vous reconnecter.');
+        localStorage.setItem('redirectAfterLogin', '/profile');
+        navigate('/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setUser(editData);
+        setIsEditing(false);
+      } else {
+        throw new Error(data.message || 'Erreur lors de la mise à jour du profil');
+      }
+    } catch (err) {
+      console.error('Erreur lors de la sauvegarde:', err);
+      setError(err.message || 'Erreur lors de la sauvegarde');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditData({ ...user });
+    setIsEditing(false);
+    setError('');
   };
 
   const handleInputChange = (e) => {
@@ -111,157 +225,146 @@ export function ProfileClient({ onNavigate, userData }) {
     setEditData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = async () => {
-    try {
-      // Ici vous pouvez ajouter la logique pour sauvegarder les modifications
-      // Par exemple, envoyer une requête PUT à votre API
-      const token = localStorage.getItem('client_token');
-      
-      // Exemple de requête de mise à jour (à adapter selon votre API)
-      /*
-      await axios.put('http://localhost:8000/api/client/profile', editData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-        withCredentials: true
-      });
-      */
-      
-      setUser(editData);
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
-      setError('Erreur lors de la sauvegarde des modifications');
-    }
-  };
+  // Charger les données au montage
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
-  const handleCancel = () => {
-    setEditData({ ...user });
-    setIsEditing(false);
+  // Formatage des dates
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Non définie';
+    return new Date(dateString).toLocaleDateString('fr-FR');
   };
 
   // Affichage du loading
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement du profil...</p>
+      <div className="flex h-screen bg-gray-50">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement de votre profil...</p>
+          </div>
         </div>
       </div>
     );
   }
-
-  // Affichage en cas d'erreur
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button 
-            onClick={fetchProfile}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-          >
-            Réessayer
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // utils/date.js (ou directement dans le fichier)
- const formatDate = (dateString) => {
-  const options = { year: 'numeric', month: 'long' };
-  return new Date(dateString).toLocaleDateString('fr-FR', options);
-};
 
   return (
     <div className="min-h-screen bg-gray-50 flex w-screen">
-      {/* Sidebar Simple et Élégante */}
-      <div className="w-64 bg-white shadow-lg flex flex-col justify-between h-screen">
-        {/* Header Sidebar */}
-        <div className="p-6 border-b border-gray-100">
-          <h4 className="font-semibold text-lg text-gray-800">Espace Client</h4>
+      {/* Sidebar (identique à MesDevisPage) */}
+      <div className="w-64 bg-white shadow-sm">
+        <div className="p-6">
+          <h2 className="text-xl font-bold text-gray-900">Espace Client</h2>
         </div>
         
-        {/* Navigation */}
-        <div className="flex-1 p-4">
-          <nav className="space-y-1">
-            <NavItem icon={Home} label="Dashboard" />
-            <NavItem icon={User} label="Mon Profil" active />
-            <NavItem icon={FileText} label="Mes Devis" route="/mesdevis" />
-            <NavItem icon={Folder} label="Mes Projets" />
-            <NavItem icon={Bell} label="Notifications" />
-            
-          </nav>
-        </div>
-        
-        {/* Logout Button */}
-        <div className="p-4 border-t border-gray-100">
+        <nav className="mt-8">
+          {navigationItems.map((item, index) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            const isAuthenticated = !!getAuthToken();
+
+            if (item.protected && !isAuthenticated) return null;
+
+            return (
+              <div key={index} className="relative">
+                <Link
+                  to={item.path}
+                  className={`flex items-center px-6 py-3 text-sm font-medium transition-colors duration-200 ${
+                    isActive
+                      ? 'text-red-600 bg-red-50 border-r-2 border-red-600'
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 mr-3" />
+                  {item.label}
+                  {isActive && (
+                    <div className="absolute right-0 w-1 h-full bg-red-600 rounded-l"></div>
+                  )}
+                </Link>
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="absolute bottom-0 w-64 p-6">
           <button 
             onClick={handleLogout}
-            className="w-full flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+            className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900"
           >
-            <LogOut className="w-4 h-4 mr-3" />
+            <LogOut className="w-5 h-5 mr-3" />
             Déconnexion
           </button>
         </div>
       </div>
 
-      {/* Main content area */}
+      {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        {/* Header Minimaliste */}
-        <div className="bg-white shadow-sm border-b px-6 py-4">
-          <div className="flex justify-between items-center max-w-7xl mx-auto">
-            <div className="flex items-center space-x-4">
-              {/* Logo AP */}
-              <div className="bg-red-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg">
+        {/* Top Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white font-bold mr-4">
                 AP
               </div>
-              
               <div>
-                <h1 className="text-2xl font-bold text-red-600">ArtisanPeinture</h1>
-                <p className="text-gray-600 text-sm">Gérez vos informations personnelles</p>
+                <h1 className="text-xl font-bold text-gray-900">ArtisanPeinture</h1>
+                <p className="text-sm text-gray-600">Gérez votre profil</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex space-x-2">
               {!isEditing ? (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors font-medium"
+                  className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 flex items-center"
                 >
                   <Edit3 className="w-4 h-4 mr-2" />
                   Modifier
                 </button>
               ) : (
-                <div className="flex space-x-2">
+                <>
                   <button
                     onClick={handleSave}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors font-medium"
+                    disabled={isLoading}
+                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center disabled:opacity-50"
                   >
                     <Save className="w-4 h-4 mr-2" />
-                    Sauvegarder
+                    {isLoading ? 'En cours...' : 'Sauvegarder'}
                   </button>
                   <button
                     onClick={handleCancel}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors font-medium"
+                    className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 flex items-center"
                   >
                     <X className="w-4 h-4 mr-2" />
                     Annuler
                   </button>
-                </div>
+                </>
               )}
             </div>
           </div>
         </div>
 
-        {/* Content Layout: Cards en haut, puis deux divs en bas */}
-        <div className="max-w-7xl mx-auto p-6 space-y-6">
-          
-          {/* Cards Statistiques en Haut */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Page Content */}
+        <div className="p-6">
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6">
+              <div className="flex items-center">
+                <X className="w-5 h-5 mr-2" />
+                {error}
+              </div>
+              <button 
+                onClick={() => setError('')}
+                className="mt-2 text-sm underline hover:no-underline"
+              >
+                Fermer
+              </button>
+            </div>
+          )}
+
+          {/* Cards Statistiques */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <StatCard 
               title="Projets en Cours" 
               value={stats.projetsEnCours}
@@ -285,17 +388,15 @@ export function ProfileClient({ onNavigate, userData }) {
             />
           </div>
 
-          {/* Deux Divs Côte à Côte en Bas */}
+          {/* Deux Divs Côte à Côte */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
             {/* Profile Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
                 <User className="w-5 h-5 mr-2 text-blue-600" />
                 Profil Client
               </h2>
 
-              {/* Profile Info */}
               <div className="space-y-4">
                 <div className="text-center pb-4 border-b border-gray-100">
                   <h3 className="text-lg font-semibold text-gray-800">
@@ -309,29 +410,28 @@ export function ProfileClient({ onNavigate, userData }) {
 
                 <div className="space-y-3">
                   <motion.div 
-  initial={{ opacity: 0, y: 20 }} 
-  animate={{ opacity: 1, y: 0 }} 
-  transition={{ duration: 0.5, delay: 0.1 }}
->
-  <InfoRow 
-    icon={Calendar} 
-    label="Membre depuis" 
-    value={user.created_at ? formatDate(user.created_at) : 'N/A'} 
-  />
-</motion.div>
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                  >
+                    <InfoRow 
+                      icon={Calendar} 
+                      label="Membre depuis" 
+                      value={user.dateInscription ? formatDate(user.dateInscription) : 'N/A'} 
+                    />
+                  </motion.div>
 
-<motion.div 
-  initial={{ opacity: 0, y: 20 }} 
-  animate={{ opacity: 1, y: 0 }} 
-  transition={{ duration: 0.5, delay: 0.2 }}
->
-  <InfoRow 
-    icon={User} 
-    label="ID Client" 
-    value={user.id ? `CLI-${user.id}` : 'N/A'} 
-  />
-</motion.div>
-
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                  >
+                    <InfoRow 
+                      icon={User} 
+                      label="ID Client" 
+                      value={user.id ? `CLI-${user.id}` : 'N/A'} 
+                    />
+                  </motion.div>
                 </div>
 
                 <div className="pt-4">
@@ -355,7 +455,7 @@ export function ProfileClient({ onNavigate, userData }) {
             </div>
 
             {/* Informations personnelles Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
                 <Mail className="w-5 h-5 mr-2 text-green-600" />
                 Informations Personnelles
@@ -409,7 +509,6 @@ export function ProfileClient({ onNavigate, userData }) {
                   onChange={handleInputChange}
                   textarea
                 />
-                
               </div>
             </div>
           </div>
@@ -419,31 +518,8 @@ export function ProfileClient({ onNavigate, userData }) {
   );
 }
 
-// Navigation Item Component
-function NavItem({ icon: Icon, label, active = false, route }) {
-  const navigate = useNavigate();
-
-  const handleClick = () => {
-    if (route) {
-      navigate(route);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors
-        ${active ? 'bg-red-100 text-red-700' : 'text-gray-700 hover:bg-gray-100'}`}
-    >
-      <Icon className="w-4 h-4 mr-3" />
-      {label}
-    </button>
-  );
-}
-
-
-// Stat Card Component Minimaliste
-const StatCard = ({ title, value, color, urgent }) => {
+// Composants utilitaires (identique à votre version précédente)
+function StatCard({ title, value, color, urgent }) {
   const colorMap = {
     blue: 'border-blue-200 bg-blue-50 text-blue-600',
     green: 'border-green-200 bg-green-50 text-green-600',
@@ -459,9 +535,8 @@ const StatCard = ({ title, value, color, urgent }) => {
       </div>
     </div>
   );
-};
+}
 
-// Info Row Component
 const InfoRow = ({ icon: Icon, label, value }) => (
   <div className="flex items-center text-sm">
     <Icon className="w-4 h-4 mr-2 text-gray-400" />
@@ -470,7 +545,6 @@ const InfoRow = ({ icon: Icon, label, value }) => (
   </div>
 );
 
-// Info Field Component Minimaliste
 const InfoField = ({ label, value, icon, iconColor = 'text-gray-400', editable, name, onChange, editValue, textarea }) => (
   <div className="border-b border-gray-100 pb-3">
     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</label>

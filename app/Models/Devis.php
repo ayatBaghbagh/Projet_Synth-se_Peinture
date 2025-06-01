@@ -36,6 +36,7 @@ class Devis extends Model
         'validite_devis' => 'integer'
     ];
 
+    // Relations
     public function demandeDevis()
     {
         return $this->belongsTo(DemandeDevis::class, 'id_demandedevis');
@@ -46,13 +47,47 @@ class Devis extends Model
         return $this->belongsTo(Client::class, 'id_client', 'id_client');
     }
 
+    public function projets()
+{
+    return $this->hasMany(Projet::class, 'id_devis', 'id_devis');
+
+}
+// Dans le modèle Devis
+public function projet()
+{
+    return $this->hasOne(Projet::class, 'id_devis');
+}
+
+
+
+// Dans le modèle Projet
+public function devis()
+{
+    return $this->belongsTo(Devis::class, 'id_devis');
+}
+
+    // Accesseurs
     public function getIsExpiredAttribute()
     {
+        if (!$this->date_creation) return false;
         return $this->date_creation->addDays($this->validite_devis)->isPast();
     }
 
     public function getDateExpirationAttribute()
     {
+        if (!$this->date_creation) return null;
         return $this->date_creation->addDays($this->validite_devis);
     }
+
+    public function getStatusLabelAttribute()
+    {
+        $labels = [
+            'en_attente' => 'En attente',
+            'accepte' => 'Accepté',
+            'refuse' => 'Refusé'
+        ];
+        
+        return $labels[$this->statut] ?? 'Inconnu';
+    }
+   
 }

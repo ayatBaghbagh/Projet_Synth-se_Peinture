@@ -92,7 +92,7 @@ export const Login = ({ onNavigate }) => {
       );
 
       if (response.status === 200 && response.data.success) {
-        // CORRECTION 1: Utiliser 'auth_token' au lieu de 'client_token' pour la cohérence
+        // Stocker le token et les données client
         localStorage.setItem('auth_token', response.data.token);
         localStorage.setItem('client', JSON.stringify(response.data.client));
         
@@ -101,15 +101,8 @@ export const Login = ({ onNavigate }) => {
         
         console.log('Connexion réussie:', response.data);
         
-        // CORRECTION 2: Vérifier s'il y a une redirection prévue après login
-        const redirectAfterLogin = localStorage.getItem('redirectAfterLogin');
-        if (redirectAfterLogin) {
-          localStorage.removeItem('redirectAfterLogin');
-          navigate(redirectAfterLogin);
-        } else {
-          // Par défaut, aller au profil
-          navigate('/profile');
-        }
+        // CORRECTION: Rediriger vers la page "Mes Projets" au lieu du profil
+        navigate('/mes-projets');
       }
     } catch (error) {
       console.error('Erreur:', error);

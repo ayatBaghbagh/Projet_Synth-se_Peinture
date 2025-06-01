@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoutee = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -23,4 +23,4 @@ const ProtectedRoute = ({ children }) => {
   return getAuthToken() ? children : null;
 };
 
-export default ProtectedRoute;
+export default ProtectedRoutee;

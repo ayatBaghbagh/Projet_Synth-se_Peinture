@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Home, FileText, FolderOpen, Bell, Settings, LogOut, Search, Plus, Eye, Download, Check, X, ArrowLeft } from 'lucide-react';
+import { User, Home, FileText, FolderOpen, Bell, LogOut, Search, Plus, Eye, Download, Check, X } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 export const MesDevisPage = () => {
@@ -11,6 +11,7 @@ export const MesDevisPage = () => {
   const [selectedDevis, setSelectedDevis] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [csrfToken, setCsrfToken] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,36 +39,80 @@ export const MesDevisPage = () => {
     { icon: Bell, label: 'Notifications', path: '/notifications' },
   ];
 
-  // CORRECTION 3: URLs API cohérentes
-  const API_BASE_URL = 'http://localhost:8000/api/client';
-  const API_PROTECTED_URL = 'http://localhost:8000/api';
+  const API_BASE_URL = 'http://localhost:8000/api';
 
-  // CORRECTION 4: Fonction pour obtenir le token d'authentification (cohérent avec Login)
+  // Fonction pour obtenir le token CSRF du cookie
+  const getCSRFToken = () => {
+    const tokenCookie = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('XSRF-TOKEN='));
+      
+    if (tokenCookie) {
+      return decodeURIComponent(tokenCookie.split('=')[1]);
+    }
+    return '';
+  };
+
+  // Fonction pour obtenir le token d'authentification
   const getAuthToken = () => {
     return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
   };
 
-  // Fonction pour obtenir les headers d'authentification
-  const getAuthHeaders = () => {
-    const token = getAuthToken();
+  // Configuration des headers avec CSRF et Auth
+  const getHeaders = () => {
+    const authToken = getAuthToken();
+    const csrfToken = getCSRFToken();
+    
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` })
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+      ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken })
     };
   };
 
-  // CORRECTION 5: Vérification d'authentification simplifiée
-  useEffect(() => {
-    const token = getAuthToken();
-    if (!token) {
-      // Sauvegarder la route actuelle pour rediriger après login
-      localStorage.setItem('redirectAfterLogin', '/mesdevis');
-      navigate('/login');
-      return;
+  // Initialiser CSRF et authentification
+  const initializeApp = async () => {
+    try {
+      // 1. Récupérer le cookie CSRF
+      await fetch(`${API_BASE_URL}/../sanctum/csrf-cookie`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      // 2. Mettre à jour le token CSRF
+      const token = getCSRFToken();
+      setCsrfToken(token);
+      
+      console.log('CSRF Token configuré:', token ? 'Présent' : 'Absent');
+      
+      // 3. Vérifier l'authentification
+      const authToken = getAuthToken();
+      if (!authToken) {
+        localStorage.setItem('redirectAfterLogin', '/mesdevis');
+        navigate('/login');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Erreur initialisation CSRF:', error);
+      setError('Erreur de connexion au serveur');
+      return false;
     }
-    // Si authentifié, charger les devis
-    fetchDevis();
+  };
+
+  // Charger les données au démarrage
+  useEffect(() => {
+    const loadData = async () => {
+      const initialized = await initializeApp();
+      if (initialized) {
+        await fetchDevis();
+      }
+    };
+    
+    loadData();
   }, [navigate]);
 
   const fetchDevis = async () => {
@@ -75,20 +120,11 @@ export const MesDevisPage = () => {
       setIsLoading(true);
       setError(null);
       
-      const token = getAuthToken();
-      if (!token) {
-        setError('Vous devez être connecté pour voir vos devis');
-        navigate('/login');
-        return;
-      }
-
-      // CORRECTION 6: URL cohérente avec les routes Laravel
-      const url = `${API_PROTECTED_URL}/mes-devis`;
-      
-      console.log(`Récupération des devis depuis: ${url}`);
-      const response = await fetch(url, {
+      console.log('Récupération des devis...');
+      const response = await fetch(`${API_BASE_URL}/mes-devis`, {
         method: 'GET',
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
+        credentials: 'include'
       });
 
       console.log('Réponse reçue, status:', response.status);
@@ -100,6 +136,16 @@ export const MesDevisPage = () => {
         localStorage.setItem('redirectAfterLogin', '/mesdevis');
         navigate('/login');
         return;
+      }
+
+      if (response.status === 419) {
+        console.log('Erreur CSRF, tentative de renouvellement...');
+        const refreshed = await initializeApp();
+        if (refreshed) {
+          // Retry une fois
+          return fetchDevis();
+        }
+        throw new Error('Erreur CSRF persistante. Veuillez recharger la page.');
       }
 
       if (!response.ok) {
@@ -123,6 +169,8 @@ export const MesDevisPage = () => {
           motif_refus: devis.motif_refus,
           validite_devis: devis.validite_devis || 30,
           delai_execution: devis.delai_execution,
+          is_expired: devis.is_expired,
+          date_expiration: devis.date_expiration,
           demande_devis: devis.demande_devis ? {
             id: devis.demande_devis.id,
             description: devis.demande_devis.description,
@@ -141,10 +189,6 @@ export const MesDevisPage = () => {
     } catch (err) {
       console.error('Erreur lors du chargement des devis:', err);
       setError(err.message || 'Erreur lors du chargement des devis');
-      
-      if (err.message.includes('Failed to fetch')) {
-        setError('Erreur réseau. Vérifiez votre connexion internet.');
-      }
     } finally {
       setIsLoading(false);
     }
@@ -154,23 +198,23 @@ export const MesDevisPage = () => {
     try {
       setActionLoading(true);
       
-      const token = getAuthToken();
-      if (!token) {
-        setError('Vous devez être connecté');
-        return;
-      }
+      // Renouveler le token CSRF avant l'action critique
+      await fetch(`${API_BASE_URL}/../sanctum/csrf-cookie`, {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      // CORRECTION 7: URL pour mise à jour du statut
-      const url = `${API_PROTECTED_URL}/devis/${devisId}/status`;
       const requestBody = {
         statut: newStatus,
         ...(motifRefus && { motif_refus: motifRefus })
       };
 
-      console.log(`Mise à jour du statut via: ${url}`);
-      const response = await fetch(url, {
+      console.log(`Mise à jour du statut du devis ${devisId}:`, requestBody);
+      
+      const response = await fetch(`${API_BASE_URL}/devis/${devisId}/status`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
+        credentials: 'include',
         body: JSON.stringify(requestBody),
       });
 
@@ -181,35 +225,56 @@ export const MesDevisPage = () => {
         return;
       }
 
+      if (response.status === 419) {
+        throw new Error('Erreur CSRF. Veuillez recharger la page et réessayer.');
+      }
+
+      if (response.status === 422) {
+        const errorData = await response.json();
+        const errorMessages = Object.values(errorData.errors || {}).flat().join(', ');
+        throw new Error(`Données invalides: ${errorMessages}`);
+      }
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
       
       if (data.success) {
-        // Mettre à jour l'état local
-        setDevis(prevDevis => 
-          prevDevis.map(d => 
+    console.log('Projet créé:', data.projet_id); // Ajoutez ce log
+    // Mettre à jour l'état local
+    setDevis(prevDevis => 
+        prevDevis.map(d => 
             d.id_devis === devisId 
-              ? { 
-                  ...d, 
-                  statut: newStatus,
-                  date_acceptation: newStatus === 'accepte' ? new Date().toISOString() : d.date_acceptation,
-                  date_refus: newStatus === 'refuse' ? new Date().toISOString() : d.date_refus,
-                  motif_refus: newStatus === 'refuse' ? motifRefus : d.motif_refus
+                ? { 
+                    ...d, 
+                    statut: newStatus,
+                    date_acceptation: newStatus === 'accepte' ? new Date().toISOString() : d.date_acceptation,
+                    date_refus: newStatus === 'refuse' ? new Date().toISOString() : d.date_refus,
+                    motif_refus: newStatus === 'refuse' ? motifRefus : d.motif_refus
                 }
-              : d
-          )
-        );
-        
-        setShowModal(false);
-        setSelectedDevis(null);
-        
-        alert(`Devis ${newStatus === 'accepte' ? 'accepté' : 'refusé'} avec succès`);
-      } else {
-        throw new Error(data.message || 'Erreur lors de la mise à jour');
-      }
+                : d
+        )
+    );
+    
+    setShowModal(false);
+    setSelectedDevis(null);
+    
+    const successMessage = newStatus === 'accepte' 
+        ? 'Devis accepté avec succès ! Un projet a été créé automatiquement.'
+        : 'Devis refusé avec succès.';
+    
+    alert(successMessage);
+    
+    if (newStatus === 'accepte' && data.projet_id) {
+        const viewProject = confirm('Voulez-vous voir votre nouveau projet ?');
+        if (viewProject) {
+            navigate('/mes-projets');
+        }
+    }
+}
       
     } catch (err) {
       console.error('Erreur lors de la mise à jour:', err);
@@ -253,13 +318,6 @@ export const MesDevisPage = () => {
     }).format(amount);
   };
 
-  const calculateValidityDate = (creationDate, validityDays = 30) => {
-    if (!creationDate) return 'Non définie';
-    const date = new Date(creationDate);
-    date.setDate(date.getDate() + validityDays);
-    return date.toLocaleDateString('fr-FR');
-  };
-
   if (isLoading) {
     return (
       <div className="flex h-screen bg-gray-50">
@@ -284,6 +342,14 @@ export const MesDevisPage = () => {
             <p className="text-gray-600 mb-6">
               Voulez-vous vraiment {selectedDevis.action === 'accepte' ? 'accepter' : 'refuser'} ce devis de {formatCurrency(selectedDevis.prix_total)} ?
             </p>
+            
+            {selectedDevis.action === 'accepte' && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-700">
+                  ✓ En acceptant ce devis, un projet sera automatiquement créé dans votre espace.
+                </p>
+              </div>
+            )}
             
             {selectedDevis.action === 'refuse' && (
               <div className="mb-4">
@@ -310,8 +376,7 @@ export const MesDevisPage = () => {
               <button 
                 onClick={() => {
                   const motifRefus = selectedDevis.action === 'refuse' 
-                    ? document.getElementById('motif-refus')?.value || null
-                    : null;
+                    ? document.getElementById('motif-refus')?.value                 : null;
                   handleStatusChange(selectedDevis.id_devis, selectedDevis.action, motifRefus);
                 }}
                 disabled={actionLoading}
@@ -338,7 +403,6 @@ export const MesDevisPage = () => {
             const isActive = location.pathname === item.path;
             const isAuthenticated = !!getAuthToken();
 
-            // Ne pas afficher les routes protégées si non connecté
             if (item.protected && !isAuthenticated) return null;
 
             return (
@@ -397,7 +461,9 @@ export const MesDevisPage = () => {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Mes Devis</h2>
-                <p className="text-gray-600">Consultez et gérez vos demandes de devis ({devis.length} devis au total)</p>
+                <p className="text-gray-600">
+                  Consultez et gérez vos demandes de devis ({devis.length} devis au total)
+                </p>
               </div>
               <button 
                 onClick={fetchDevis}
@@ -408,33 +474,36 @@ export const MesDevisPage = () => {
               </button>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative mb-4">
-              <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher un devis..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full max-w-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            {/* Search and Filter Section */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un devis..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
 
-            {/* Filter Tabs */}
-            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
-              {filterOptions.map(option => (
-                <button
-                  key={option}
-                  onClick={() => setFilter(option)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                    filter === option
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
+              {/* Filter Tabs */}
+              <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+                {filterOptions.map(option => (
+                  <button
+                    key={option}
+                    onClick={() => setFilter(option)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                      filter === option
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -480,7 +549,7 @@ export const MesDevisPage = () => {
               {filteredDevis.map(devis => (
                 <div key={devis.id_devis} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition p-6">
                   {/* Header with status indicator */}
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-4">
                     <div className="flex items-center space-x-3">
                       <div className={`w-3 h-3 rounded-full ${
                         devis.statut === 'en_attente' ? 'bg-orange-400' :
@@ -499,14 +568,16 @@ export const MesDevisPage = () => {
                       <div className="text-2xl font-bold text-gray-900 mb-1">
                         {formatCurrency(devis.prix_total)}
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[devis.statut] || statusColors['en_attente']}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                        statusColors[devis.statut] || statusColors['en_attente']
+                      }`}>
                         {statusLabels[devis.statut] || statusLabels['en_attente']}
                       </span>
                     </div>
                   </div>
 
                   {/* Details Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
                     <div>
                       <span className="text-gray-500">Date création:</span>
                       <div className="font-medium">{formatDate(devis.date_creation)}</div>
@@ -524,26 +595,31 @@ export const MesDevisPage = () => {
                       </div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Valide jusqu'au:</span>
+                      <span className="text-gray-500">Validité:</span>
                       <div className="font-medium">
-                        {calculateValidityDate(devis.date_creation, devis.validite_devis)}
+                        {devis.is_expired ? (
+                          <span className="text-red-500">Expiré</span>
+                        ) : (
+                          `Jusqu'au ${formatDate(devis.date_expiration)}`
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Additional Info for accepted/refused */}
                   {(devis.statut === 'accepte' || devis.statut === 'refuse') && (
-                    <div className="bg-gray-50 rounded-md p-3 mb-4 text-sm">
-                      {devis.statut === 'accepte' && (
-                        <div className="text-green-700">
+                    <div className={`rounded-md p-3 mb-4 text-sm ${
+                      devis.statut === 'accepte' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                    }`}>
+                      {devis.statut === 'accepte' ? (
+                        <div>
                           ✓ Devis accepté le {formatDate(devis.date_acceptation)}
                           {devis.delai_execution && (
                             <div className="mt-1">Délai d'exécution: {devis.delai_execution} jours</div>
                           )}
                         </div>
-                      )}
-                      {devis.statut === 'refuse' && (
-                        <div className="text-red-700">
+                      ) : (
+                        <div>
                           ✗ Devis refusé le {formatDate(devis.date_refus)}
                           {devis.motif_refus && (
                             <div className="mt-1">Motif: {devis.motif_refus}</div>
@@ -554,20 +630,26 @@ export const MesDevisPage = () => {
                   )}
 
                   {/* Actions */}
-                  <div className="flex justify-between items-center pt-4 border-t">
-                    <div className="flex space-x-2">
-                      <button className="flex items-center px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-4 border-t gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      <button 
+                        onClick={() => navigate(`/devis/${devis.id_devis}`)}
+                        className="flex items-center px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                      >
                         <Eye className="w-4 h-4 mr-1" />
-                        Voir
+                        Voir détails
                       </button>
-                      <button className="flex items-center px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
+                      <button 
+                        onClick={() => handleDownloadPdf(devis.id_devis)}
+                        className="flex items-center px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                      >
                         <Download className="w-4 h-4 mr-1" />
-                        PDF
+                        Télécharger PDF
                       </button>
                     </div>
                     
-                    {devis.statut === 'en_attente' && (
-                      <div className="flex space-x-2">
+                    {devis.statut === 'en_attente' && !devis.is_expired && (
+                      <div className="flex flex-wrap gap-2">
                         <button 
                           onClick={() => {
                             setSelectedDevis({ ...devis, action: 'refuse' });

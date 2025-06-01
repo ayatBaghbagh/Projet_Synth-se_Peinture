@@ -121,12 +121,19 @@ import  Gallery  from "./Clients/Gallery.jsx";
 import { PaintingServices } from './Clients/PaintingServices.jsx';
 import { Login } from './Clients/Login.jsx';
 import { Register } from './Clients/Register.jsx';
-import ProtectedRoute from './Clients/EspaceClient/ProtectedRoute.jsx';
-import { ProfileClient } from './Clients/EspaceClient/ProfileClient.jsx';ListeDemandeDevis
+import ProtectedRoutee from './Clients/EspaceClient/ProtectedRoutee.jsx';
+import { ProfileClient } from './Clients/EspaceClient/ProfileClient.jsx';
 import { MesDevisPage } from './Clients/EspaceClient/MesDevisPage.jsx';
+import { MesProjet } from './Clients/EspaceClient/MesProjet.jsx';
+import { DashboardPage } from './Clients/EspaceClient/DashboardPage.jsx';
 import { ListeDemandeDevis } from './Geron/ListeDemandeDevis.jsx';
 import { ProjetsAdminPage } from './Geron/ProjetsAdminPage.jsx';
 import { ChefsAdminPage } from './Geron/ChefsAdminPage.jsx';
+import { CommentairePageEspaceGeron } from './Geron/CommentairePageEspaceGeron.jsx'; 
+import  ContactPageEspaceGeron  from './Geron/ContactPageEspaceGeron.jsx';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 function App() {
   return (
     <Routes>
@@ -141,13 +148,17 @@ function App() {
         <Route path="register" element={<Register/>} />
         <Route path="profile" element={<ProfileClient/>} />
         <Route path="mesdevis" element={<MesDevisPage/>} />
+        <Route path="dashboard" element={<DashboardPage/>} />
         <Route path="listedemande" element={<ListeDemandeDevis/>} />
         <Route path="projetvalider" element={<ProjetsAdminPage/>} />
         <Route path="chefsprojets" element={<ChefsAdminPage/>} />
+        <Route path="commentaireger" element={<CommentairePageEspaceGeron/>} />
+        <Route path="mes-projets" element={<MesProjet/>} />
+        <Route path="contactger" element={<ContactPageEspaceGeron/>} />
         <Route path="/mesdevis" element={
-        <ProtectedRoute>
+        <ProtectedRoutee>
           <MesDevisPage />
-        </ProtectedRoute>
+        </ProtectedRoutee>
       } />
       </Route>
     </Routes>

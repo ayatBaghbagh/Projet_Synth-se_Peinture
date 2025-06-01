@@ -435,6 +435,8 @@ class ClientAuthController extends Controller
         ]);
     }
 
+    
+
     // Debug pour vérifier l'authentification
     public function debugAuth(Request $request)
     {
@@ -462,6 +464,81 @@ class ClientAuthController extends Controller
                     'headers' => $request->headers->all(),
                 ]
             ]);
+        }
+    }
+
+    // Récupérer les projets du client avec les données du devis
+    public function mesProjetsC(Request $request)
+    {
+        try {
+            $client = auth('sanctum')->user();
+            
+            if (!$client || !$client instanceof \App\Models\Client) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Client non authentifié'
+                ], 401);
+            }
+
+            Log::info('Récupération des projets pour le client: ' . $client->id_client);
+
+            // Récupérer les projets du client avec les relations devis et client
+            $projets = Projet::with(['devis', 'client'])
+                ->whereHas('devis', function($query) use ($client) {
+                    $query->where('id_client', $client->id_client)
+                          ->where('statut', 'accepte'); // Seulement les devis acceptés
+                })
+                ->orderBy('date_d', 'desc')
+                ->get();
+
+            Log::info('Nombre de projets trouvés pour le client ' . $client->id_client . ': ' . $projets->count());
+
+            // Formater les données pour le frontend
+            $projetsFormatted = $projets->map(function ($projet) {
+                return [
+                    'id_projet' => $projet->id_projet,
+                    'titre' => $projet->titre,
+                    'description' => $projet->description ?? 'Projet de peinture',
+                    'type_projet' => $projet->type_projet,
+                    'status' => $projet->status,
+                    'date_d' => $projet->date_d,
+                    'date_f' => $projet->date_f,
+                    'adresse' => optional($projet->client)->adresse ?? 'Non spécifiée',
+                    'budget' => $projet->devis ? $projet->devis->prix_total : 0,
+                    'image' => $projet->image ? asset('storage/images/' . $projet->image) : null,
+                    'favoris' => (bool)$projet->favoris,
+                    'devis' => $projet->devis ? [
+                        'id_devis' => $projet->devis->id_devis,
+                        'numero_devis' => $projet->devis->numero_devis,
+                        'description_travaux' => $projet->devis->description_travaux,
+                        'prix_total' => $projet->devis->prix_total,
+                        'statut' => $projet->devis->statut,
+                        'date_creation' => $projet->devis->date_creation,
+                        'delai_execution' => $projet->devis->delai_execution,
+                    ] : null,
+                    'client' => [
+                        'nom' => $projet->client->nom ?? '',
+                        'prenom' => $projet->client->prenom ?? '',
+                        'adresse' => $projet->client->adresse ?? '',
+                    ]
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Projets récupérés avec succès',
+                'projets' => $projetsFormatted,
+                'count' => $projetsFormatted->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des projets: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des projets',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }
