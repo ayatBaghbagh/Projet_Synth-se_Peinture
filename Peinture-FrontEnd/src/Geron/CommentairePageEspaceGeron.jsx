@@ -495,17 +495,7 @@ export function CommentairePageEspaceGeron() {
         <span>Commentaires</span>
       </button>
 
-      <button
-        onClick={() => { setActivePage('equipe'); navigate('/equipe'); }}
-        className={`flex items-center w-full text-left space-x-3 px-3 py-3 rounded-lg ${
-          activePage === 'equipe'
-            ? 'text-purple-600 bg-purple-50 font-medium'
-            : 'text-gray-600 hover:bg-gray-50'
-        }`}
-      >
-        <Users size={20} />
-        <span>Equipes</span>
-      </button>
+      
       <button
         onClick={() => {
           // Effacer les informations d'authentification

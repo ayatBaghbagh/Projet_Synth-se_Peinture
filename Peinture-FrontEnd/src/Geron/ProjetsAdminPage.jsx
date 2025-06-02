@@ -88,7 +88,6 @@ export function ProjetsAdminPage() {
     { id: 'listedemande', label: 'Liste des demandes devis', icon: ClipboardList, route: '/listedemande' },
     { id: 'Projets', label: 'Projets', icon: File, route: '/projetvalider' },
     { id: 'Clients', label: 'Utilisateurs', icon: Users, route: '/utilisateurs' },
-    { id: 'Equipes', label: 'Équipes', icon: Users, route: '/equipes' },
     { id: 'contactger', label: 'Contact', icon: Contact, route: '/contactger' },
     { id: 'commentaireger', label: 'Commentaire', icon: MessageSquare, route: '/commentaireger' },
     { id: 'Deconnexion', label: 'Deconnexion', icon: LogOut, route: '/' },
