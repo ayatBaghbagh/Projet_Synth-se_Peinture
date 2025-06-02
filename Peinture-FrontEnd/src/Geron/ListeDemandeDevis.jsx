@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Eye, User, Home, FileText, Users, Calendar, Settings, FilePlus, RefreshCw } from 'lucide-react';
+import { Search, Eye, User, Calendar, Settings, FilePlus,LogOut, RefreshCw ,Contact ,MessageSquare} from 'lucide-react';
 import axios from 'axios';
+import { Link, useLocation } from 'react-router-dom';
+import { Home, FileText, Users } from 'lucide-react';
 
 export const ListeDemandeDevis = () => {
   const [showCreateDevis, setShowCreateDevis] = useState(false);
@@ -12,6 +14,10 @@ export const ListeDemandeDevis = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('created_at');
   const [csrfToken, setCsrfToken] = useState('');
+
+  const location = useLocation();
+const current = location.pathname;
+
 
   // Fonction pour extraire le token CSRF du cookie
   const getCSRFToken = () => {
@@ -230,8 +236,8 @@ export const ListeDemandeDevis = () => {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto">
+        <div className="bg-white w-screen p-4 rounded-xl  max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex justify-between items-center p-6 border-b border-gray-200">
             <div>
               <h2 className="text-xl font-bold text-gray-800">Créer un Devis</h2>
@@ -396,66 +402,100 @@ export const ListeDemandeDevis = () => {
           </div>
           
           <nav className="space-y-1 flex-grow">
-            <a 
-              href="#" 
-              className={`flex items-center space-x-3 px-3 py-3 rounded-lg ${
-                activePage === 'dashboard' 
-                  ? 'text-purple-600 bg-purple-50 font-medium' 
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-              onClick={() => setActivePage('dashboard')}
-            >
-              <Home size={20} />
-              <span>Tableau de bord</span>
-            </a>
-            <a 
-              href="#" 
-              className={`flex items-center space-x-3 px-3 py-3 rounded-lg ${
-                activePage === 'listeDevis' 
-                  ? 'text-purple-600 bg-purple-50 font-medium' 
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-              onClick={() => setActivePage('listeDevis')}
-            >
-              <FileText size={20} />
-              <span>Liste des demandes devis</span>
-            </a>
-            <a 
-              href="#" 
-              className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
-            >
-              <Users size={20} />
-              <span>Clients</span>
-            </a>
-            <a 
-              href="#" 
-              className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
-            >
-              <Users size={20} />
-              <span>Projets </span>
-            </a>
-            <a 
-              href="#" 
-              className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
-            >
-              <Users size={20} />
-              <span>Équipes</span>
-            </a>
-            <a 
-              href="#" 
-              className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
-            >
-              <Calendar size={20} />
-              <span>Planning</span>
-            </a>
-            <a 
-              href="#" 
-              className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
-            >
-              <Settings size={20} />
-              <span>Paramètres</span>
-            </a>
-          </nav>
+  <Link 
+    to="/dashboard" 
+    className={`flex items-center space-x-3 px-3 py-3 rounded-lg ${
+      current === '/dashboard' 
+        ? 'text-purple-600 bg-purple-50 font-medium' 
+        : 'text-gray-600 hover:bg-gray-50'
+    }`}
+  >
+    <Home size={20} />
+    <span>Tableau de bord</span>
+  </Link>
+
+  <Link 
+  to="/listedemandedevis" 
+  className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-purple-600 bg-purple-50 font-medium ${
+    current === '/listedemandedevis' 
+      ? 'text-purple-600 bg-purple-50 font-medium' 
+      : 'text-gray-600 hover:bg-gray-50'
+  }`}
+>
+  <FileText size={20} />
+  <span>Liste des demandes devis</span>
+</Link>
+
+  <Link 
+    to="/utilisateurs" 
+    className={`flex items-center space-x-3 px-3 py-3 rounded-lg ${
+      current === '/utilisateurs' 
+        ? 'text-purple-600 bg-purple-50 font-medium' 
+        : 'text-gray-600 hover:bg-gray-50'
+    }`}
+  >
+    <Users size={20} />
+    <span>Utilisateurs</span>
+  </Link>
+
+  <Link 
+    to="/projetvalider"
+    className={`flex items-center space-x-3 px-3 py-3 rounded-lg ${
+      current === '/projetvalider' 
+        ? 'text-purple-600 bg-purple-50 font-medium' 
+        : 'text-gray-600 hover:bg-gray-50'
+    }`}
+  >
+    <Users size={20} />
+    <span>Projets</span>
+  </Link>
+  <Link 
+    to="/contactger"
+    className={`flex items-center space-x-3 px-3 py-3 rounded-lg ${
+      current === '/projetvalider' 
+        ? 'text-purple-600 bg-purple-50 font-medium' 
+        : 'text-gray-600 hover:bg-gray-50'
+    }`}
+  >
+    <Contact size={20} />
+    <span>Contacts</span>
+  </Link>
+  <Link 
+    to="/commentaireger"
+    className={`flex items-center space-x-3 px-3 py-3 rounded-lg ${
+      current === '/projetvalider' 
+        ? 'text-purple-600 bg-purple-50 font-medium' 
+        : 'text-gray-600 hover:bg-gray-50'
+    }`}
+  >
+    <MessageSquare size={20} />
+    <span>Commentaires</span>
+  </Link>
+
+  <Link 
+    to="/equipe"
+    className={`flex items-center space-x-3 px-3 py-3 rounded-lg ${
+      current === '/equipe' 
+        ? 'text-purple-600 bg-purple-50 font-medium' 
+        : 'text-gray-600 hover:bg-gray-50'
+    }`}
+  >
+    <Users size={20} />
+    <span>Équipes</span>
+  </Link>
+  <Link 
+    to="/"
+    className={`flex items-center space-x-3 px-3 py-3 rounded-lg ${
+      current === '/déconnexion' 
+        ? 'text-purple-600 bg-purple-50 font-medium' 
+        : 'text-gray-600 hover:bg-gray-50'
+    }`}
+  >
+    <LogOut size={20} />
+    <span>Déconnexion</span>
+  </Link>
+</nav>
+
           
           <div className="mt-auto pt-4 border-t border-gray-100">
             <div className="flex items-center space-x-2">

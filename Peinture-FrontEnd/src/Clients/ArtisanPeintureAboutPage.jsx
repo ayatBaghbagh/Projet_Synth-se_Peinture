@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { Clock, Shield, Heart, Award, Users, Rocket } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 
 export default function ArtisanPeintureAboutPage() {
   const [testimonialTab, setTestimonialTab] = useState("particuliers");
   const [visibleSections, setVisibleSections] = useState({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -433,12 +435,19 @@ export default function ArtisanPeintureAboutPage() {
             Contactez-nous dès aujourd'hui pour discuter de votre projet ou demander un devis gratuit.
           </p>
           <div className="flex justify-center gap-4">
-            <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all">
-              Demander un devis
-            </button>
-            <button className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-all">
-              Nous contacter
-            </button>
+            <button
+        onClick={() => navigate('/demande-devis')}
+        className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-all"
+      >
+        Demander un devis
+      </button>
+
+      <button
+        onClick={() => navigate('/contact')}
+        className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-all"
+      >
+        Nous contacter
+      </button>
           </div>
         </div>
       </div>

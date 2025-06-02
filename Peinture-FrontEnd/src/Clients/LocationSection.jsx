@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const LocationSection = () => {
+  const navigate = useNavigate();
   return (
     <div className="page-container">
       {/* Section de localisation */}
@@ -114,9 +116,14 @@ const LocationSection = () => {
       
       {/* Call to action */}
       <div className="cta-section">
-        <h2 className="cta-title">Prêt à transformer votre espace?</h2>
-        <button className="cta-button">Demander un devis gratuit</button>
-      </div>
+      <h2 className="cta-title">Prêt à transformer votre espace?</h2>
+      <button
+        onClick={() => navigate('/demande-devis')}
+        className="cta-button"
+      >
+        Demander un devis gratuit
+      </button>
+    </div>
       
       <style jsx>{`
         /* Styles globaux */

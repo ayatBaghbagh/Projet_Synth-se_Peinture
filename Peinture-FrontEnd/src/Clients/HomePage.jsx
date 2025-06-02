@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
+import videoPeinture from '../assets/vediopeinture.mp4'; // adapte le chemin si nécessaire
+
 import { ArrowRight, Phone, Mail, MapPin, Facebook, Twitter, Instagram, CheckCircle, Star, Send, AlertCircle } from 'lucide-react';
 
 export default function HomePage() {
@@ -514,12 +517,19 @@ export default function HomePage() {
               </nav>
             </div>
             <div className="flex space-x-3">
-              <button className="border border-red-500 text-red-500 px-4 py-2 rounded-md text-sm transition-all duration-300 hover:bg-red-50">
-                Connexion
-              </button>
-              <button className="bg-red-500 text-white px-4 py-2 rounded-md text-sm transition-all duration-300 hover:bg-red-600">
-                Inscription
-              </button>
+             <div className="flex gap-2">
+  <Link to="/login">
+    <button className="border border-red-500 text-red-500 px-4 py-2 rounded-md text-sm transition-all duration-300 hover:bg-red-50">
+      Connexion
+    </button>
+  </Link>
+  <Link to="/register">
+    <button className="bg-red-500 text-white px-4 py-2 rounded-md text-sm transition-all duration-300 hover:bg-red-600">
+      Inscription
+    </button>
+  </Link>
+</div>
+
             </div>
           </div>
         </div>
@@ -545,9 +555,13 @@ export default function HomePage() {
                 demandez un devis personnalisé.
               </p>
               <div className="flex space-x-4 mb-12">
-                <button className="bg-red-500 text-white px-6 py-3 rounded-md flex items-center text-sm transition-all duration-300 hover:bg-red-600 group">
-                  Voir nos réalisations <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-                </button>
+               <Link to="/galerie">
+  <button className="bg-red-500 text-white px-6 py-3 rounded-md flex items-center text-sm transition-all duration-300 hover:bg-red-600 group">
+    Voir nos réalisations
+    <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+  </button>
+</Link>
+
                 
                 <button
                   onClick={handleDevisClickDemande}
@@ -569,117 +583,140 @@ export default function HomePage() {
               </div>
             </div>
             <div className="md:w-1/2 flex items-center justify-center bg-gray-100 rounded-lg 
-              transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group">
-              <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center 
-                            relative overflow-hidden">
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center 
-                              transform transition-all duration-500 group-hover:scale-125 group-hover:bg-red-500 
-                              group-hover:text-white shadow-lg">
-                  <svg 
-                    width="24" 
-                    height="24" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="animate-pulse"
-                  >
-                    <rect 
-                      x="6" 
-                      y="6" 
-                      width="12" 
-                      height="12" 
-                      stroke="currentColor" 
-                      strokeWidth="2"
-                      className="transition-colors duration-300"
-                    />
-                  </svg>
-                </div>
+                    transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group">
+      <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center 
+                      relative overflow-hidden">
+        {/* 🎥 Vidéo */}
+        <video
+          src={videoPeinture}
+          className="absolute w-full h-full object-cover"
+          autoPlay
+          loop
+          muted
+        />
 
-                <button 
-                  onClick={() => navigate('/a-propos')}
-                  className="absolute bottom-4 bg-white px-4 py-2 rounded-full text-sm 
-                                    opacity-0 group-hover:opacity-100 transition-all duration-300
-                                    flex items-center hover:bg-red-500 hover:text-white shadow-md group/btn"
-                >
-                  Voir les détails
-                  <ArrowRight size={16} className="ml-2 transition-transform group-hover/btn:translate-x-1" />
-                </button>
-              </div>
-            </div>
+        {/* Overlay sombre au survol */}
+        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+        {/* Icône animée */}
+        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center 
+                        transform transition-all duration-500 group-hover:scale-125 group-hover:bg-red-500 
+                        group-hover:text-white shadow-lg z-10">
+          <svg 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+            className="animate-pulse"
+          >
+            <rect 
+              x="6" 
+              y="6" 
+              width="12" 
+              height="12" 
+              stroke="currentColor" 
+              strokeWidth="2"
+              className="transition-colors duration-300"
+            />
+          </svg>
+        </div>
+
+        {/* Bouton voir les détails */}
+        <button 
+          onClick={() => navigate('/a-propos')}
+          className="absolute bottom-4 bg-white px-4 py-2 rounded-full text-sm 
+                     opacity-0 group-hover:opacity-100 transition-all duration-300
+                     flex items-center hover:bg-red-500 hover:text-white shadow-md group/btn z-10"
+        >
+          Voir les détails
+          <ArrowRight size={16} className="ml-2 transition-transform group-hover/btn:translate-x-1" />
+        </button>
+      </div>
+    </div>
           </div>
         </div>
       </section>
 
       {/* Services Section */}
-      <section className="py-16 bg-white relative z-10">
-        <div className="w-full px-6">
-          <div className="flex justify-center mb-2">
-            <div className="bg-blue-100 text-blue-600 rounded-full px-4 py-1 text-sm">
-              Nos expertises
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-blue-600 text-center mb-4">Nos Services</h2>
-          <p className="text-gray-600 text-center mb-12">
-            Nous offrons une gamme complète de services de peinture pour répondre à tous vos besoins.
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="border border-red-100 rounded-lg p-8 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group">
-              <div className="mb-4">
-                <CheckCircle className="text-red-500" size={24} />
-              </div>
-              <h3 className="text-xl font-semibold text-red-500 mb-3">Peinture Intérieure</h3>
-              <p className="text-gray-600 mb-6">
-                Transformez l'intérieur de votre maison avec nos services de peinture professionnels.
-              </p>
-              <div className="flex space-x-2">
-                <div className="w-4 h-4 bg-red-500 rounded-full transition-colors duration-300 group-hover:bg-red-600"></div>
-                <div className="w-4 h-4 bg-blue-300 rounded-full"></div>
-                <div className="w-4 h-4 bg-teal-300 rounded-full"></div>
-              </div>
-            </div>
-            
-            <div className="border border-blue-100 rounded-lg p-8 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group">
-              <div className="mb-4">
-                <CheckCircle className="text-blue-500" size={24} />
-              </div>
-              <h3 className="text-xl font-semibold text-blue-500 mb-3">Peinture Extérieure</h3>
-              <p className="text-gray-600 mb-6">
-                Améliorez l'apparence extérieure de votre propriété avec notre expertise en peinture.
-              </p>
-              <div className="flex space-x-2">
-                <div className="w-4 h-4 bg-blue-500 rounded-full transition-colors duration-300 group-hover:bg-blue-600"></div>
-                <div className="w-4 h-4 bg-blue-800 rounded-full"></div>
-              </div>
-            </div>
-            
-            <div className="border border-yellow-100 rounded-lg p-8 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group">
-              <div className="mb-4">
-                <CheckCircle className="text-yellow-500" size={24} />
-              </div>
-              <h3 className="text-xl font-semibold text-yellow-500 mb-3">Peinture Décorative</h3>
-              <p className="text-gray-600 mb-6">
-                Ajoutez une touche unique à votre espace avec nos techniques de peinture décorative.
-              </p>
-              <div className="flex space-x-2">
-                <div className="w-4 h-4 bg-yellow-500 rounded-full transition-colors duration-300 group-hover:bg-yellow-600"></div>
-                <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
-                <div className="w-4 h-4 bg-red-400 rounded-full"></div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex justify-center">
-            <button className="bg-red-500 text-white px-6 py-3 rounded-md text-sm
-                              transition-all duration-300 hover:bg-red-600 flex items-center group">
-              Voir tous nos services
-              <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-            </button>
+      <section className="py-16 bg-white relative z-10"> 
+      <div className="w-full px-6">
+        <div className="flex justify-center mb-2">
+          <div className="bg-blue-100 text-blue-600 rounded-full px-4 py-1 text-sm">
+            Nos expertises
           </div>
         </div>
-      </section>
+        <h2 className="text-3xl font-bold text-blue-600 text-center mb-4">Nos Services</h2>
+        <p className="text-gray-600 text-center mb-12">
+          Nous offrons une gamme complète de services de peinture pour répondre à tous vos besoins.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div 
+            className="border border-red-100 rounded-lg p-8 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
+            onClick={() => navigate('/services')}
+          >
+            <div className="mb-4">
+              <CheckCircle className="text-red-500" size={24} />
+            </div>
+            <h3 className="text-xl font-semibold text-red-500 mb-3">Peinture Intérieure</h3>
+            <p className="text-gray-600 mb-6">
+              Transformez l'intérieur de votre maison avec nos services de peinture professionnels.
+            </p>
+            <div className="flex space-x-2">
+              <div className="w-4 h-4 bg-red-500 rounded-full group-hover:bg-red-600 transition-colors duration-300"></div>
+              <div className="w-4 h-4 bg-blue-300 rounded-full"></div>
+              <div className="w-4 h-4 bg-teal-300 rounded-full"></div>
+            </div>
+          </div>
+
+          <div 
+            className="border border-blue-100 rounded-lg p-8 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
+            onClick={() => navigate('/services')}
+          >
+            <div className="mb-4">
+              <CheckCircle className="text-blue-500" size={24} />
+            </div>
+            <h3 className="text-xl font-semibold text-blue-500 mb-3">Peinture Extérieure</h3>
+            <p className="text-gray-600 mb-6">
+              Améliorez l'apparence extérieure de votre propriété avec notre expertise en peinture.
+            </p>
+            <div className="flex space-x-2">
+              <div className="w-4 h-4 bg-blue-500 rounded-full group-hover:bg-blue-600 transition-colors duration-300"></div>
+              <div className="w-4 h-4 bg-blue-800 rounded-full"></div>
+            </div>
+          </div>
+
+          <div 
+            className="border border-yellow-100 rounded-lg p-8 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
+            onClick={() => navigate('/services')}
+          >
+            <div className="mb-4">
+              <CheckCircle className="text-yellow-500" size={24} />
+            </div>
+            <h3 className="text-xl font-semibold text-yellow-500 mb-3">Peinture Décorative</h3>
+            <p className="text-gray-600 mb-6">
+              Ajoutez une touche unique à votre espace avec nos techniques de peinture décorative.
+            </p>
+            <div className="flex space-x-2">
+              <div className="w-4 h-4 bg-yellow-500 rounded-full group-hover:bg-yellow-600 transition-colors duration-300"></div>
+              <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
+              <div className="w-4 h-4 bg-red-400 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-center">
+          <button 
+            onClick={() => navigate('/services')}
+            className="bg-red-500 text-white px-6 py-3 rounded-md text-sm transition-all duration-300 hover:bg-red-600 flex items-center group"
+          >
+            Voir tous nos services
+            <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+          </button>
+        </div>
+      </div>
+    </section>
 
       {/* Portfolio Section */}
     <section className="py-16 bg-gradient-to-r from-gray-100 to-pink-50 relative z-10">
@@ -721,14 +758,14 @@ export default function HomePage() {
                           e.target.src = '/images/default-project.jpg';
                         }}
                       />
-                      <button
+                      {/* <button
                         onClick={() => navigate(`/projets/${projet.id_projet}`)}
                         className="absolute bottom-4 bg-white px-4 py-2 rounded-full text-sm
                                  opacity-0 group-hover:opacity-100 transition-opacity duration-300
                                  shadow-md hover:shadow-lg hover:bg-red-500 hover:text-white"
                       >
                         Voir les détails
-                      </button>
+                      </button> */}
                     </div>
                     <div className="p-4">
                       <h3 className="font-medium">{projet.titre}</h3>

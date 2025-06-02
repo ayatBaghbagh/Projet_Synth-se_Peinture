@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Home, Building, Palette, Wrench, Briefcase, Users } from 'lucide-react';
+import { Home, Building, Palette, Briefcase, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import videoPeinture from '../assets/deuxVediopeinture.mp4'; // adapte le chemin si nécessaire
 
 export const PaintingServices = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   // Service icons mapping
   const serviceIcons = {
@@ -19,12 +23,12 @@ export const PaintingServices = () => {
 
   // Service colors mapping
   const serviceColors = {
-    'Intérieur': 'bg-red-50 border-red-200 text-red-600',
-    'Extérieur': 'bg-blue-50 border-blue-200 text-blue-600',
-    'Décoratif': 'bg-yellow-50 border-yellow-200 text-yellow-600',
-    'Résidentiel': 'bg-green-50 border-green-200 text-green-600',
-    'Commercial': 'bg-purple-50 border-purple-200 text-purple-600',
-    'Collectivité': 'bg-gray-50 border-gray-200 text-gray-600'
+    'Intérieur': 'bg-red-100 border-red-200 text-red-600',
+    'Extérieur': 'bg-blue-100 border-blue-200 text-blue-600',
+    'Décoratif': 'bg-yellow-100 border-yellow-200 text-yellow-600',
+    'Résidentiel': 'bg-green-100 border-green-200 text-green-600',
+    'Commercial': 'bg-purple-100 border-purple-200 text-purple-600',
+    'Collectivité': 'bg-gray-100 border-gray-200 text-gray-600'
   };
 
   // Service descriptions mapping
@@ -97,6 +101,9 @@ export const PaintingServices = () => {
     }
   };
 
+  // Default services to show if API fails
+  const defaultServices = ['Intérieur', 'Extérieur', 'Commercial', 'Résidentiel', 'Décoratif', 'Collectivité'];
+
   useEffect(() => {
     fetchServices();
   }, []);
@@ -104,43 +111,63 @@ export const PaintingServices = () => {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      // Adjust the API endpoint to match your Laravel route
+      setError(null);
+
       const response = await axios.get('http://localhost:8000/api/projets');
-      
-      // Extract unique types from the response
-      const uniqueTypes = [...new Set(response.data.map(projet => projet.type_projet))];
-      setServices(uniqueTypes);
+      const projets = Array.isArray(response.data) ? response.data : [];
+
+      // Extract unique service types from projects
+      const uniqueTypes = [
+        ...new Set(
+          projets
+            .map(projet => projet?.type_projet)
+            .filter(type => type && serviceDescriptions[type])
+        )
+      ];
+
+      // If we have valid types from API, use them, otherwise use defaults
+      const validTypes = uniqueTypes.length > 0 ? uniqueTypes : defaultServices;
+
+      setServices(validTypes);
     } catch (err) {
-      console.error('Error fetching services:', err);
+      console.error('Erreur lors du chargement des services:', err);
       setError('Erreur lors du chargement des services');
-      // Fallback data based on your sample data
-      setServices(['Intérieur', 'Extérieur', 'Commercial', 'Résidentiel', 'Décoratif']);
+      setServices(defaultServices);
     } finally {
       setLoading(false);
     }
   };
 
   const handleServiceRequest = (serviceType) => {
-    // Handle service request - you can implement navigation or modal here
-    console.log(`Demande de devis pour: ${serviceType}`);
-    // Example: navigate to quote request form
-    // window.location.href = `/devis?service=${serviceType}`;
+    navigate('/demande-devis', { state: { serviceType } });
   };
 
   if (loading) {
     return (
-      <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="w-screen min-h-screen bg-gray-50 flex items-center justify-center"
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+            className="rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"
+          ></motion.div>
           <p className="text-gray-600">Chargement des services...</p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (error) {
     return (
-      <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="w-screen min-h-screen bg-gray-50 flex items-center justify-center"
+      >
         <div className="text-center text-red-600">
           <p className="text-lg mb-4">{error}</p>
           <button 
@@ -150,23 +177,35 @@ export const PaintingServices = () => {
             Réessayer
           </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="w-full min-h-screen bg-gray-50">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="w-screen min-h-screen bg-gray-50"
+    >
       {/* Header Section */}
       <div className="bg-white">
         <div className="max-w-7xl mx-auto px-4 py-12">
           <div className="flex items-center mb-6">
-            <button className="text-blue-600 hover:text-blue-700 flex items-center text-sm font-medium">
+            <button 
+              onClick={() => navigate('/')}
+              className="text-blue-600 hover:text-blue-700 flex items-center text-sm font-medium"
+            >
               ← Retour à l'accueil
             </button>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
+            <motion.div
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
               <div className="inline-block bg-red-600 text-white px-3 py-1 rounded-full text-sm font-medium mb-4">
                 Expertise professionnelle
               </div>
@@ -180,54 +219,68 @@ export const PaintingServices = () => {
               </p>
               
               <div className="space-y-3 mb-8">
-                <div className="flex items-center text-gray-700">
-                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-white text-xs">✓</span>
-                  </div>
-                  Artisans qualifiés avec plus de 15 ans d'expérience
-                </div>
-                <div className="flex items-center text-gray-700">
-                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-white text-xs">✓</span>
-                  </div>
-                  Matériaux et peintures de haute qualité
-                </div>
-                <div className="flex items-center text-gray-700">
-                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-white text-xs">✓</span>
-                  </div>
-                  Respect des délais et du budget
-                </div>
-                <div className="flex items-center text-gray-700">
-                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-white text-xs">✓</span>
-                  </div>
-                  Garantie sur tous nos travaux
-                </div>
+                {[
+                  "Artisans qualifiés avec plus de 15 ans d'expérience",
+                  "Matériaux et peintures de haute qualité",
+                  "Respect des délais et du budget",
+                  "Garantie sur tous nos travaux"
+                ].map((item, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center text-gray-700"
+                  >
+                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                    {item}
+                  </motion.div>
+                ))}
               </div>
               
-              <button 
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => handleServiceRequest('general')}
                 className="bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors"
               >
                 Demander un devis gratuit →
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
             
-            <div className="relative">
-              <img 
-                src="/api/placeholder/500/400" 
-                alt="Services de peinture professionnels" 
-                className="rounded-lg shadow-lg"
-              />
-            </div>
+            <motion.div 
+  initial={{ x: 50, opacity: 0 }}
+  animate={{ x: 0, opacity: 1 }}
+  transition={{ duration: 0.5 }}
+  className="w-full h-[36rem] bg-gray-200 rounded-lg flex items-center justify-center 
+                      relative overflow-hidden"
+>
+  <video
+    src={videoPeinture}
+    controls
+    className="absolute w-full h-full object-cover"
+    style={{
+      objectFit: 'cover',
+      border: '4px solid #f3f4f6', // gris clair
+      boxShadow: '0 10px 20px rgba(0, 0, 0, 0.15)',
+    }}
+  />
+</motion.div>
           </div>
         </div>
       </div>
 
       {/* Services Section */}
       <div className="max-w-7xl mx-auto px-4 py-16">
-        <div className="text-center mb-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-12"
+        >
           <div className="inline-block bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium mb-4">
             Nos prestations
           </div>
@@ -238,7 +291,7 @@ export const PaintingServices = () => {
             Nous proposons une large gamme de services adaptés à vos besoins spécifiques, qu'il 
             s'agisse de peinture intérieure, extérieure ou de projets décoratifs.
           </p>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {services.map((serviceType, index) => {
@@ -248,45 +301,56 @@ export const PaintingServices = () => {
               description: `Services professionnels de ${serviceType.toLowerCase()}`,
               features: ['Service de qualité', 'Équipe expérimentée', 'Matériaux premium']
             };
-            const colorClass = serviceColors[serviceType] || 'bg-gray-50 border-gray-200 text-gray-600';
+            const colorClass = serviceColors[serviceType] || 'bg-gray-100 border-gray-200 text-gray-600';
 
             return (
-  //             <div className="min-h-screen bg-gray-50 flex flex-col items-stretch p-4 w-screen">
-  // <div className="w-full max-w-none mx-0">
-              <div 
-                key={serviceType} 
-                className={`rounded-lg border-2 p-6 hover:shadow-lg transition-all duration-300 ${colorClass} bg-white border-gray-200`}
+              <motion.div
+                key={`${serviceType}-${index}`}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300"
               >
-                <div className="text-center mb-6">
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4 ${colorClass}`}>
+                <div className="p-6">
+                  <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-4 ${colorClass}`}>
                     <IconComponent className="w-6 h-6" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">
                     {serviceInfo.title}
                   </h3>
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-gray-600 text-sm mb-4">
                     {serviceInfo.description}
                   </p>
-                </div>
 
-                <div className="space-y-3 mb-6">
-                  {serviceInfo.features.map((feature, featureIndex) => (
-                    <div key={featureIndex} className="flex items-start">
-                      <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                        <span className="text-white text-xs">✓</span>
-                      </div>
-                      <span className="text-gray-700 text-sm">{feature}</span>
-                    </div>
-                  ))}
-                </div>
+                  <div className="space-y-3 mb-6">
+                    {serviceInfo.features.map((feature, featureIndex) => (
+                      <motion.div 
+                        key={featureIndex}
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: featureIndex * 0.05 }}
+                        className="flex items-start"
+                      >
+                        <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                        <span className="text-gray-600 text-sm">{feature}</span>
+                      </motion.div>
+                    ))}
+                  </div>
 
-                <button 
-                  onClick={() => handleServiceRequest(serviceType)}
-                  className="w-full py-2 px-4 border-2 border-current rounded-lg font-medium hover:bg-current hover:text-white transition-colors"
-                >
-                  Demander un devis
-                </button>
-              </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleServiceRequest(serviceType)}
+                    className={`w-full mt-4 py-2 px-4 rounded-lg font-medium transition-colors ${colorClass.replace('bg-100', 'bg-600').replace('text-600', 'text-white')} hover:opacity-90`}
+                  >
+                    Demander un devis
+                  </motion.button>
+                </div>
+              </motion.div>
             );
           })}
         </div>
@@ -295,7 +359,13 @@ export const PaintingServices = () => {
       {/* Process Section */}
       <div className="bg-white">
         <div className="max-w-7xl mx-auto px-4 py-16">
-          <div className="text-center mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-12"
+          >
             <div className="inline-block bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-medium mb-4">
               Notre méthode
             </div>
@@ -305,7 +375,7 @@ export const PaintingServices = () => {
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
               Découvrez comment nous travaillons pour vous garantir un résultat parfait.
             </p>
-          </div>
+          </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
@@ -334,13 +404,20 @@ export const PaintingServices = () => {
                 color: "bg-green-600"
               }
             ].map((step, index) => (
-              <div key={index} className="text-center">
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="text-center"
+              >
                 <div className={`w-16 h-16 ${step.color} rounded-full flex items-center justify-center mx-auto mb-4`}>
                   <span className="text-white text-xl font-bold">{step.number}</span>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3">{step.title}</h3>
                 <p className="text-gray-600 text-sm">{step.description}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -348,7 +425,13 @@ export const PaintingServices = () => {
 
       {/* CTA Section */}
       <div className="bg-blue-600">
-        <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="max-w-4xl mx-auto px-4 py-16 text-center"
+        >
           <h2 className="text-3xl font-bold text-white mb-4">
             Prêt à transformer votre espace?
           </h2>
@@ -356,15 +439,16 @@ export const PaintingServices = () => {
             Contactez-nous dès aujourd'hui pour discuter de votre projet ou demander un devis 
             gratuit. Notre équipe d'experts est à votre disposition pour répondre à toutes vos questions.
           </p>
-          <button 
-            onClick={() => handleServiceRequest('contact')}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/demande-devis')}
             className="bg-white text-blue-600 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors"
           >
             Demander un devis
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
-

@@ -10,6 +10,7 @@ return [
     'paths' => [
         'api/*',
         'sanctum/csrf-cookie',
+         'storage/*',
         '*' // Permet CORS sur toutes les routes
     ],
 
@@ -21,7 +22,8 @@ return [
         'http://127.0.0.1:3000',
         'http://127.0.0.1:3001',
         'http://localhost:5173', // Vite default port
-        'http://127.0.0.1:5173'
+        'http://127.0.0.1:5173',
+        'http://localhost:8000'
     ],
 
     'allowed_origins_patterns' => [

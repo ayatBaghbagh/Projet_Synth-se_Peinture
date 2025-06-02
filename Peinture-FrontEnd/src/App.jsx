@@ -133,6 +133,8 @@ import { CommentairePageEspaceGeron } from './Geron/CommentairePageEspaceGeron.j
 import  ContactPageEspaceGeron  from './Geron/ContactPageEspaceGeron.jsx';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import {Utilisateurs} from './Geron/Utilisateurs.jsx';
+import {AdminDashboard} from './Geron/AdminDashboard.jsx';
 
 function App() {
   return (
@@ -141,6 +143,7 @@ function App() {
         <Route index element={<HomePage />} />
         <Route path="demande-devis" element={<DemandeDevisPage />} />
         <Route path="contact" element={<ContactPage />} />
+        <Route path="utilisateurs" element={<Utilisateurs />} />
         <Route path="a-propos" element={<ArtisanPeintureAboutPage />} />
         <Route path="galerie" element={<Gallery  />} />
         <Route path="services" element={<PaintingServices />} />
@@ -155,6 +158,7 @@ function App() {
         <Route path="commentaireger" element={<CommentairePageEspaceGeron/>} />
         <Route path="mes-projets" element={<MesProjet/>} />
         <Route path="contactger" element={<ContactPageEspaceGeron/>} />
+        <Route path="admindashboard" element={<AdminDashboard/>} />
         <Route path="/mesdevis" element={
         <ProtectedRoutee>
           <MesDevisPage />

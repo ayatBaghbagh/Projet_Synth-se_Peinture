@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from './axiosConfig';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Search, 
+  LogOut,
+  Edit,
+  Check,
+  MapPin,
   Trash2,
   MoreVertical,
   Eye,
@@ -31,6 +36,7 @@ import {
 const API_BASE_URL = 'http://localhost:8000/api';
 
 export default function ContactPageEspaceGeron() {
+    const navigate = useNavigate();
     const [contacts, setContacts] = useState([]);
     const [filteredContacts, setFilteredContacts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -498,7 +504,7 @@ const handleApiError = (error) => {
 
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className=" w-screen bg-gray-50">
             <div className="flex w-full">
                 {/* Sidebar */}
                 <aside className="w-64 bg-white shadow-sm flex-shrink-0 min-h-screen">
@@ -513,45 +519,101 @@ const handleApiError = (error) => {
                         </div>
                         
                         <nav className="space-y-1 flex-grow">
-                            <button 
-                                className={`flex items-center space-x-3 px-3 py-3 rounded-lg w-full text-left ${
-                                    activePage === 'dashboard' 
-                                        ? 'text-purple-600 bg-purple-50 font-medium' 
-                                        : 'text-gray-600 hover:bg-gray-50'
-                                }`}
-                                onClick={() => setActivePage('dashboard')}
-                            >
-                                <Home size={20} />
-                                <span>Tableau de bord</span>
-                            </button>
-                            <button 
-                                className={`flex items-center space-x-3 px-3 py-3 rounded-lg w-full text-left ${
-                                    activePage === 'contacts' 
-                                        ? 'text-purple-600 bg-purple-50 font-medium' 
-                                        : 'text-gray-600 hover:bg-gray-50'
-                                }`}
-                                onClick={() => setActivePage('contacts')}
-                            >
-                                <Mail size={20} />
-                                <span>Contacts</span>
-                            </button>
-                            <button className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg w-full text-left">
-                                <Users size={20} />
-                                <span>Clients</span>
-                            </button>
-                            <button className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg w-full text-left">
-                                <Briefcase size={20} />
-                                <span>Projets</span>
-                            </button>
-                            <button className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg w-full text-left">
-                                <Calendar size={20} />
-                                <span>Planning</span>
-                            </button>
-                            <button className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg w-full text-left">
-                                <Settings size={20} />
-                                <span>Paramètres</span>
-                            </button>
-                        </nav>
+      <button
+        onClick={() => { setActivePage('dashbordadmin'); navigate('/dashbordadmin'); }}
+        className={`flex items-center w-full text-left space-x-3 px-3 py-3 rounded-lg ${
+          activePage === 'dashbordadmin'
+            ? 'text-purple-600 bg-purple-50 font-medium'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+      >
+        <Home size={20} />
+        <span>Dashboard</span>
+      </button>
+
+      <button
+        onClick={() => { setActivePage('listedemandedevis'); navigate('/listedemande'); }}
+        className={`flex items-center w-full text-left space-x-3 px-3 py-3 rounded-lg ${
+          activePage === 'listedemandedevis'
+            ? 'text-purple-600 bg-purple-50 font-medium'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+      >
+        <Edit size={20} />
+        <span>Liste des demandes de devis</span>
+      </button>
+
+      <button
+        onClick={() => { setActivePage('utilisateurs'); navigate('/utilisateurs'); }}
+        className={`flex items-center w-full text-left space-x-3 px-3 py-3 rounded-lg ${
+          activePage === 'utilisateurs'
+            ? 'text-purple-600 bg-purple-50 font-medium'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+      >
+        <Users size={20} />
+        <span>Gestion des utilisateurs</span>
+      </button>
+
+      <button
+        onClick={() => { setActivePage('projetvalider'); navigate('/projetvalider'); }}
+        className={`flex items-center w-full text-left space-x-3 px-3 py-3 rounded-lg ${
+          activePage === 'projetvalider'
+            ? 'text-purple-600 bg-purple-50 font-medium'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+      >
+        <Check size={20} />
+        <span>Projets validés</span>
+      </button>
+
+      <button
+        onClick={() => { setActivePage('contactger'); navigate('/contactger'); }}
+        className={`flex items-center w-full text-left space-x-3 px-3 py-3 rounded-lg text-purple-600 bg-purple-50 font-medium${
+          activePage === 'contactger'
+            
+        }`}
+      >
+        <Phone size={20} />
+        <span>Contacts</span>
+      </button>
+
+      <button
+        onClick={() => { setActivePage('commentaireger'); navigate('/commentaireger'); }}
+        className={`flex items-center w-full text-left space-x-3 px-3 py-3 rounded-lg ${
+          activePage === 'commentaireger'
+            ? 'text-purple-600 bg-purple-50 font-medium'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+      >
+        <MapPin size={20} />
+        <span>Commentaires</span>
+      </button>
+
+      <button
+        onClick={() => { setActivePage('equipe'); navigate('/equipe'); }}
+        className={`flex items-center w-full text-left space-x-3 px-3 py-3 rounded-lg ${
+          activePage === 'equipe'
+            ? 'text-purple-600 bg-purple-50 font-medium'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+      >
+        <Users size={20} />
+        <span>Equipes</span>
+      </button>
+      <button
+        onClick={() => {
+          // Effacer les informations d'authentification
+          localStorage.removeItem('authToken');
+          // Rediriger vers la page d'accueil
+          navigate('/');
+        }}
+        className="flex items-center space-x-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg w-full text-left"
+      >
+        <LogOut size={20} />
+        <span>Déconnexion</span>
+      </button>
+    </nav>
                         
                         <div className="mt-auto pt-4 border-t border-gray-100">
                             <div className="flex items-center space-x-2">

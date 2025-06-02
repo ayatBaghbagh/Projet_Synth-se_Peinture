@@ -4,10 +4,14 @@ import DeleteTaskModal from "./DeleteTaskModal";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 
 
 import axios from 'axios';
 import { 
+    Contact,
+    LogOut,
+    MessageSquare,
   Search, 
   Plus, 
   Filter, 
@@ -44,6 +48,7 @@ import {
 } from 'lucide-react';
 
 export function ProjetsAdminPage() {
+    const navigate = useNavigate();
     const [activeNav, setActiveNav] = useState('Projets');
     const [expandedProjects, setExpandedProjects] = useState({});
     const [projets, setProjets] = useState([]);
@@ -78,15 +83,16 @@ export function ProjetsAdminPage() {
         assignee_id: ''
     });
 
-    const navItems = [
-        { id: 'Dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-        { id: 'Demandes', label: 'Liste des demandes devis', icon: ClipboardList },
-        { id: 'Projets', label: 'Projets', icon: File },
-        { id: 'Clients', label: 'Clients', icon: Users },
-        { id: 'Equipes', label: 'Équipes', icon: Users },
-        { id: 'Planning', label: 'Planning', icon: Calendar },
-        { id: 'Parametres', label: 'Paramètres', icon: Settings }
-    ];
+   const navItems = [
+    { id: 'Dashboard', label: 'Tableau de bord', icon: LayoutDashboard, route: '/dashboard' },
+    { id: 'listedemande', label: 'Liste des demandes devis', icon: ClipboardList, route: '/listedemande' },
+    { id: 'Projets', label: 'Projets', icon: File, route: '/projetvalider' },
+    { id: 'Clients', label: 'Utilisateurs', icon: Users, route: '/utilisateurs' },
+    { id: 'Equipes', label: 'Équipes', icon: Users, route: '/equipes' },
+    { id: 'contactger', label: 'Contact', icon: Contact, route: '/contactger' },
+    { id: 'commentaireger', label: 'Commentaire', icon: MessageSquare, route: '/commentaireger' },
+    { id: 'Deconnexion', label: 'Deconnexion', icon: LogOut, route: '/' },
+];
 
     const filterOptions = [
         { key: 'all', label: 'Tous les Projets', icon: Filter },
@@ -1238,26 +1244,29 @@ const handleTaskInputChange = (e) => {
                     </div>
                     
                     <nav className="space-y-1 flex-grow">
-                        {navItems.map((item) => {
-                            const IconComponent = item.icon;
-                            const isActive = activeNav === item.id;
-                            
-                            return (
-                                <button
-                                    key={item.id}
-                                    onClick={() => setActiveNav(item.id)}
-                                    className={`flex items-center space-x-3 w-full text-left px-3 py-3 rounded-lg transition-colors ${
-                                        isActive
-                                            ? 'text-purple-600 bg-purple-50 font-medium'
-                                            : 'text-gray-600 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    <IconComponent size={20} />
-                                    <span>{item.label}</span>
-                                </button>
-                            );
-                        })}
-                    </nav>
+    {navItems.map((item) => {
+        const IconComponent = item.icon;
+        const isActive = activeNav === item.id;
+        
+        return (
+            <button
+                key={item.id}
+                onClick={() => {
+                    setActiveNav(item.id);
+                    navigate(item.route);
+                }}
+                className={`flex items-center space-x-3 w-full text-left px-3 py-3 rounded-lg transition-colors ${
+                    isActive
+                        ? 'text-purple-600 bg-purple-50 font-medium'
+                        : 'text-gray-600 hover:bg-gray-50'
+                }`}
+            >
+                <IconComponent size={20} />
+                <span>{item.label}</span>
+            </button>
+        );
+    })}
+</nav>
                     
                     <div className="mt-auto pt-4 border-t border-gray-100">
                         <div className="flex items-center space-x-2">

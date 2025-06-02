@@ -15,9 +15,19 @@ use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\ListeDemandeDevisController;
 use App\Http\Controllers\ProjetAutoController;
 use App\Http\Controllers\TacheProjetController;
-
+use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Mail;
 
+
+Route::prefix('admin')->group(function () {
+    Route::get('/users', [UserManagementController::class, 'index']);
+    Route::post('/users', [UserManagementController::class, 'store']);
+    Route::put('/users/{id}', [UserManagementController::class, 'update']);
+    Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
+    Route::post('/users/{id}/toggle-block', [UserManagementController::class, 'toggleBlock']);
+
+});
 
 // Route pour CSRF token - accessible depuis le frontend
 Route::get('/sanctum/csrf-cookie', function () {
@@ -218,3 +228,14 @@ Route::get('taches-projet/create/petit', [TacheProjetController::class, 'create'
      ->name('taches-projet.create.petit')
      ->defaults('type_projet', 'petit');
 Route::get('/projets/{projet}/taches', [TacheProjetController::class, 'getTachesByProjet']);
+
+
+Route::prefix('admin')->group(function () {
+    Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index']);
+    Route::get('/dashboard/favoris', [\App\Http\Controllers\DashboardController::class, 'getFavoris']);
+    
+    // Routes pour les actions rapides
+    Route::post('/demandes', [\App\Http\Controllers\DemandeDevisController::class, 'store']);
+    Route::post('/clients', [\App\Http\Controllers\ClientController::class, 'store']);
+    Route::post('/projets', [\App\Http\Controllers\ProjetController::class, 'store']);
+});
