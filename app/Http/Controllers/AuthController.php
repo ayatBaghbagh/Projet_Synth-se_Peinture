@@ -1,134 +1,148 @@
 <?php
+// AuthController.php
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use App\Models\User;
-use App\Models\Client; // Assurez-vous d'avoir ce modèle
+use App\Models\Client; // Assurez-vous d'importer le modèle Client
 
 class AuthController extends Controller
 {
-    /**
-     * Connexion utilisateur
-     */
     public function login(Request $request)
     {
-        try {
-            // Validation des données
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|email',
-                'password' => 'required|string|min:6',
-            ], [
-                'email.required' => 'L\'email est requis',
-                'email.email' => 'Format d\'email invalide',
-                'password.required' => 'Le mot de passe est requis',
-                'password.min' => 'Le mot de passe doit contenir au moins 6 caractères',
-            ]);
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required'
+        ]);
 
-            if ($validator->fails()) {
+        $email = $credentials['email'];
+        $password = $credentials['password'];
+
+        // Tentative 1: Vérifier dans la table users
+        $user = User::where('email', $email)->first();
+        
+        if ($user) {
+            // Vérifier si l'utilisateur est bloqué
+            if ($user->block == 1) {
                 return response()->json([
-                    'message' => 'Données invalides',
-                    'errors' => $validator->errors()
-                ], 422);
+                    'success' => false,
+                    'message' => 'Votre compte a été suspendu. Veuillez contacter l\'administrateur.'
+                ], 403);
             }
 
-            $credentials = $request->only('email', 'password');
-
-            // Tentative de connexion
-            if (Auth::attempt($credentials)) {
-                $user = Auth::user();
-                
-                // Créer un token Sanctum
+            // Vérifier le mot de passe
+            if (Hash::check($password, $user->password)) {
+                // Authentification réussie pour un utilisateur
                 $token = $user->createToken('auth-token')->plainTextToken;
-
+                
                 return response()->json([
-                    'message' => 'Connexion réussie',
+                    'success' => true,
                     'user' => $user,
                     'token' => $token,
-                    'token_type' => 'Bearer'
-                ], 200);
+                    'isClient' => false, // C'est un utilisateur, pas un client
+                    'userType' => 'user'
+                ]);
+            }
+        }
+
+        // Tentative 2: Vérifier dans la table clients
+        $client = Client::where('email', $email)->first();
+        
+        if ($client) {
+            // Vérifier si le client est bloqué
+            if ($client->block == 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Votre compte a été suspendu. Veuillez contacter l\'administrateur.'
+                ], 403);
             }
 
-            return response()->json([
-                'message' => 'Identifiants incorrects',
-                'error' => 'Email ou mot de passe invalide'
-            ], 401);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erreur lors de la connexion',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Déconnexion utilisateur
-     */
-    public function logout(Request $request)
-    {
-        try {
-            // Supprimer tous les tokens de l'utilisateur
-            $request->user()->tokens()->delete();
-
-            return response()->json([
-                'message' => 'Déconnexion réussie'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erreur lors de la déconnexion',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Obtenir les informations de l'utilisateur connecté
-     */
-    public function me(Request $request)
-    {
-        try {
-            return response()->json([
-                'user' => $request->user()
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erreur lors de la récupération des informations',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Rafraîchir le token
-     */
-    public function refresh(Request $request)
-    {
-        try {
-            $user = $request->user();
+            // Pour les clients, vous pouvez soit :
+            // Option 1: Comparer directement (si les mots de passe ne sont pas hashés)
+            if ($client->password === $password) {
+                // Créer un token pour le client (vous devrez peut-être ajuster selon votre configuration)
+                // Si Client n'a pas de méthode createToken, utilisez une autre approche
+                
+                // Ajouter le champ role pour compatibilité
+                $clientData = $client->toArray();
+                $clientData['role'] = 'client';
+                
+                return response()->json([
+                    'success' => true,
+                    'user' => $clientData,
+                    'token' => 'client_' . $client->id_client . '_' . time(), // Token simple pour client
+                    'isClient' => true,
+                    'userType' => 'client'
+                ]);
+            }
             
-            // Supprimer le token actuel
-            $request->user()->currentAccessToken()->delete();
-            
-            // Créer un nouveau token
-            $token = $user->createToken('auth-token')->plainTextToken;
-
-            return response()->json([
-                'message' => 'Token rafraîchi',
-                'token' => $token,
-                'token_type' => 'Bearer'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erreur lors du rafraîchissement',
-                'error' => $e->getMessage()
-            ], 500);
+            // Option 2: Si les mots de passe clients sont aussi hashés
+            // if (Hash::check($password, $client->password)) {
+            //     $clientData = $client->toArray();
+            //     $clientData['role'] = 'client';
+            //     
+            //     return response()->json([
+            //         'success' => true,
+            //         'user' => $clientData,
+            //         'token' => 'client_' . $client->id_client . '_' . time(),
+            //         'isClient' => true,
+            //         'userType' => 'client'
+            //     ]);
+            // }
         }
+
+        // Aucune correspondance trouvée
+        return response()->json([
+            'success' => false,
+            'message' => 'Identifiants incorrects'
+        ], 401);
+    }
+
+    // Méthode alternative si vous voulez séparer la logique
+    public function loginClient(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required'
+        ]);
+
+        $client = Client::where('email', $credentials['email'])->first();
+        
+        if (!$client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Client non trouvé'
+            ], 404);
+        }
+
+        if ($client->block == 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Votre compte a été suspendu. Veuillez contacter l\'administrateur.'
+            ], 403);
+        }
+
+        // Vérifier le mot de passe (ajustez selon votre méthode de stockage)
+        if ($client->password === $credentials['password']) {
+            $clientData = $client->toArray();
+            $clientData['role'] = 'client';
+            
+            return response()->json([
+                'success' => true,
+                'user' => $clientData,
+                'token' => 'client_' . $client->id_client . '_' . time(),
+                'isClient' => true,
+                'userType' => 'client'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Mot de passe incorrect'
+        ], 401);
     }
 }

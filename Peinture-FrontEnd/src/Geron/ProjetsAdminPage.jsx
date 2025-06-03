@@ -269,13 +269,11 @@ export function ProjetsAdminPage() {
 
     const taches = await response.json();
     
-    // Mettre à jour les tâches du projet
     setProjets(prev => prev.map(p => 
       p.id_projet === projectId ? { ...p, taches: taches || [] } : p
     ));
   } catch (error) {
     console.error('Erreur lors de la récupération des tâches:', error);
-    // Assurez-vous que le tableau des tâches est toujours initialisé
     setProjets(prev => prev.map(p => 
       p.id_projet === projectId ? { ...p, taches: [] } : p
     ));
@@ -421,25 +419,18 @@ export function ProjetsAdminPage() {
         }
     };
     
-    const envoyerTache = async (formData) => { 
+   const envoyerTache = async (formData) => {
   try {
-    // Obtention du cookie CSRF (ok)
+    // Configuration CSRF
     await axios.get('http://localhost:8000/sanctum/csrf-cookie', {
-      withCredentials: true,
+      withCredentials: true
     });
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    const token = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('XSRF-TOKEN='))
+      ?.split('=')[1];
 
-    // Récupération du token CSRF (ok)
-    const getCSRFToken = () => {
-      const tokenCookie = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('XSRF-TOKEN='));
-      return tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : '';
-    };
-    const token = getCSRFToken();
-
-    // Envoi de la requête POST
     const response = await axios.post(
       'http://localhost:8000/api/taches-projet',
       formData,
@@ -447,23 +438,23 @@ export function ProjetsAdminPage() {
         withCredentials: true,
         headers: {
           'X-XSRF-TOKEN': token,
-          'X-Requested-With': 'XMLHttpRequest',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       }
     );
 
-    console.log('Tâche créée avec succès', response.data);
-
-    // Affiche le modal ici, AVANT de retourner
-    setShowSuccessModal(true);
-
-    // Si tu veux retourner des données, retourne après
     return response.data;
 
   } catch (error) {
-    console.error('Erreur lors de l’envoi de la tâche :', error);
+    console.error('Erreur API:', error);
+    if (error.response) {
+      // Erreurs de validation Laravel
+      if (error.response.status === 422) {
+        const errors = Object.values(error.response.data.errors).flat();
+        throw new Error(errors.join('\n'));
+      }
+      throw new Error(error.response.data.message || 'Erreur serveur');
+    }
     throw error;
   }
 };
@@ -472,100 +463,50 @@ export function ProjetsAdminPage() {
 
    const handleCreateTask = async () => {
   try {
-    // 1. Validation des champs obligatoires
-    const requiredFields = {
-      'nom_tache': 'Le nom de la tâche est requis',
-      'date_debut': 'La date de début est requise',
-      'date_fin': 'La date de fin est requise',
-      'type_projet': 'Le type de projet est requis'
-    };
-
-    for (const [field, message] of Object.entries(requiredFields)) {
-      if (!taskFormData[field]?.toString().trim()) {
-        throw new Error(message);
-      }
+    // Validation
+    if (!taskFormData.nom_tache.trim()) {
+      throw new Error('Le nom de la tâche est requis');
+    }
+    if (!taskFormData.date_debut || !taskFormData.date_fin) {
+      throw new Error('Les dates sont requises');
     }
 
-    // 2. Validation des dates
-    const startDate = new Date(taskFormData.date_debut);
-    const endDate = new Date(taskFormData.date_fin);
-    
-    if (endDate < startDate) {
-      throw new Error('La date de fin doit être postérieure à la date de début');
-    }
-
-    // 3. Préparation des données
+    // Préparation des données
     const dataToSend = {
       nom_tache: taskFormData.nom_tache.trim(),
-      description: taskFormData.description?.trim() || null,
+      description: taskFormData.description?.trim() || '',
       date_debut: taskFormData.date_debut,
       date_fin: taskFormData.date_fin,
       statut: taskFormData.statut || 'a_faire',
-      notes: taskFormData.notes?.trim() || null,
+      notes: taskFormData.notes?.trim() || '',
       type_projet: taskFormData.type_projet,
       projet_id: selectedProjetForTask.id_projet,
       assignee_id: taskFormData.assignee_id || null
     };
 
-    // 4. Envoi à l'API
-    const createdTask = await envoyerTache(dataToSend);
+    // Envoi à l'API
+    const response = await axios.post(
+      'http://localhost:8000/api/taches-projet',
+      dataToSend,
+      {
+        withCredentials: true,
+        headers: {
+          'X-XSRF-TOKEN': getCSRFToken(),
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    // 5. Gestion du succès
-    // a. Rafraîchir les tâches
-    await fetchTachesForProject(selectedProjetForTask.id_projet);
-    
-    // b. Reset du formulaire
-    setTaskFormData({
-      nom_tache: '',
-      description: '',
-      date_debut: '',
-      date_fin: '',
-      statut: 'a_faire',
-      notes: '',
-      type_projet: '',
-      assignee_id: ''
-    });
-
-    // c. Fermer les modales
-    setShowTaskModal(false);
-    setShowProjectTypeModal(false);
-
-    // d. Afficher notification de succès
-    setShowSuccessModal({
-      show: true,
-      message: `Tâche "${createdTask.nom_tache}" créée avec succès`
-    });
-
-    return createdTask;
+    if (response.data) {
+      toast.success('Tâche créée avec succès');
+      await fetchTachesForProject(selectedProjetForTask.id_projet);
+      setShowTaskModal(false);
+      resetTaskForm();
+    }
 
   } catch (error) {
-    // 6. Gestion des erreurs détaillée
-    let errorMessage = "Une erreur est survenue";
-    
-    if (error.response) {
-      // Erreur API (422 = validation Laravel)
-      if (error.response.status === 422) {
-        const errors = error.response.data.errors;
-        errorMessage = Object.values(errors).flat().join('\n');
-      } else {
-        errorMessage = `Erreur serveur: ${error.response.status}`;
-      }
-    } else if (error.message) {
-      // Erreur de validation manuelle
-      errorMessage = error.message;
-    }
-
-    // Afficher l'erreur (vous pourriez utiliser un système de toast ici)
-    alert(errorMessage);
     console.error('Erreur création tâche:', error);
-
-    // Pour les erreurs de validation, garder la modale ouverte
-    if (!error.response || error.response.status !== 422) {
-      setShowTaskModal(false);
-      setShowProjectTypeModal(false);
-    }
-
-    throw error; // Propager l'erreur pour un traitement supplémentaire si nécessaire
+    toast.error(error.response?.data?.message || error.message || 'Erreur inconnue');
   }
 };
 const handleEditTask = (task) => {
@@ -639,13 +580,11 @@ const handleEditTask = (task) => {
     // Handlers avec useCallback pour éviter les re-renders
     const handleInputChangeTask = (e) => {
   const { name, value } = e.target;
-
   setTaskFormData(prev => ({
     ...prev,
-    [name]: value,
+    [name]: value
   }));
 };
-
 
 // 1. Ajoutez cette fonction handleInputChange pour les tâches AVANT le return
 const handleTaskInputChange = (e) => {
@@ -782,7 +721,12 @@ const handleTaskInputChange = (e) => {
                             type="text" 
                             name="nom_tache"
                             value={taskFormData.nom_tache}
-                            onChange={handleInputChangeTask}
+                           onChange={(e) => {
+  setTaskFormData(prev => ({
+    ...prev,
+    [e.target.name]: e.target.value // ✅ Correct - met à jour le champ correspondant
+  }));
+  }}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
                             placeholder="Nom de la tâche"
                         />
@@ -792,7 +736,12 @@ const handleTaskInputChange = (e) => {
                         <textarea 
                             value={taskFormData.description}
                             name="description"
-                            onChange={handleInputChangeTask}
+                           onChange={(e) => {
+  setTaskFormData(prev => ({
+    ...prev,
+    [e.target.name]: e.target.value // ✅ Correct - met à jour le champ correspondant
+  }));
+  }}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
                             rows="3"
                             placeholder="Description de la tâche..."
@@ -812,7 +761,12 @@ const handleTaskInputChange = (e) => {
                         <select 
                             value={taskFormData.assignee_id}
                             name="assignee_id"
-                            onChange={handleInputChangeTask}
+                           onChange={(e) => {
+  setTaskFormData(prev => ({
+    ...prev,
+    [e.target.name]: e.target.value // ✅ Correct - met à jour le champ correspondant
+  }));
+  }}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         >
                             <option value="">Sélectionner une personne</option>
@@ -828,7 +782,12 @@ const handleTaskInputChange = (e) => {
                                 type="date" 
                                 name="date_debut"
                                 value={taskFormData.date_debut}
-                                onChange={handleInputChangeTask}
+                               onChange={(e) => {
+  setTaskFormData(prev => ({
+    ...prev,
+    [e.target.name]: e.target.value // ✅ Correct - met à jour le champ correspondant
+  }));
+  }}
                                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
                             />
                         </div>
@@ -838,7 +797,12 @@ const handleTaskInputChange = (e) => {
                                 type="date" 
                                 name="date_fin"
                                 value={taskFormData.date_fin}
-                                onChange={handleInputChangeTask}
+                               onChange={(e) => {
+  setTaskFormData(prev => ({
+    ...prev,
+    [e.target.name]: e.target.value // ✅ Correct - met à jour le champ correspondant
+  }));
+  }}
                                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
                             />
                         </div>
@@ -848,7 +812,12 @@ const handleTaskInputChange = (e) => {
                         <select 
                             name="statut"
                             value={taskFormData.statut}
-                            onChange={handleInputChangeTask}
+                           onChange={(e) => {
+  setTaskFormData(prev => ({
+    ...prev,
+    [e.target.name]: e.target.value // ✅ Correct - met à jour le champ correspondant
+  }));
+  }}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         >
                             <option value="a_faire">À faire</option>
@@ -861,7 +830,12 @@ const handleTaskInputChange = (e) => {
                         <textarea 
                             value={taskFormData.notes}
                             name="notes"
-                            onChange={handleInputChangeTask}
+                           onChange={(e) => {
+  setTaskFormData(prev => ({
+    ...prev,
+    [e.target.name]: e.target.value // ✅ Correct - met à jour le champ correspondant
+  }));
+  }}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" 
                             rows="3"
                             placeholder="Notes supplémentaires..."
@@ -874,12 +848,12 @@ const handleTaskInputChange = (e) => {
                         >
                             Annuler
                         </button>
-                        <button 
-                            onClick={handleCreateTask}
-                            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                        >
-                            Ajouter
-                        </button>
+                       <button 
+  onClick={handleCreateTask}
+  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+>
+  Ajouter
+</button>
                     </div>
                 </div>
             </div>
@@ -1094,12 +1068,6 @@ const handleTaskInputChange = (e) => {
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Nouveau Projet</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Nom du projet*</label>
@@ -1312,13 +1280,7 @@ const handleTaskInputChange = (e) => {
                             <>
                                 <div className="flex items-center justify-between mb-6">
                                     <h1 className="text-2xl font-bold text-gray-900">Gestion des Projets</h1>
-                                    <button 
-                                        onClick={() => setShowAddModal(true)}
-                                        className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center space-x-2 transition-colors"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        <span>Nouveau Projet</span>
-                                    </button>
+                                    
                                 </div>
 
                                 {/* Filters */}

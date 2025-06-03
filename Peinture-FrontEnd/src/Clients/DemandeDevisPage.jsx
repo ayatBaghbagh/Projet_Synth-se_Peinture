@@ -114,7 +114,7 @@ export const DemandeDevisPage = () => {
       // Redirection automatique après 3 secondes
       setTimeout(() => {
         setShowSuccessModal(false);
-        navigate('/');
+        navigate('/register');
       }, 3000);
 
     } catch (error) {
@@ -158,7 +158,7 @@ export const DemandeDevisPage = () => {
   };
 
   const handleCancel = () => {
-    navigate('/');
+    navigate('/register');
   };
   
   return (
@@ -183,11 +183,11 @@ export const DemandeDevisPage = () => {
               <button 
                 onClick={() => {
                   setShowSuccessModal(false);
-                  navigate('/');
+                  navigate('/register');
                 }}
                 className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
               >
-                Retour à l'accueil
+                fait une inscription
               </button>
             </div>
           </div>
@@ -197,7 +197,7 @@ export const DemandeDevisPage = () => {
       <div className="w-[80%] mx-auto">
         <div className="flex justify-between items-center mb-6">
           <button 
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/register')}
             className="text-gray-800 flex items-center no-underline"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" className="mr-1">

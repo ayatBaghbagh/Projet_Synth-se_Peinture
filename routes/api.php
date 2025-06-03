@@ -18,7 +18,8 @@ use App\Http\Controllers\TacheProjetController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Mail;
-
+use App\Http\Controllers\UtilisateursController;
+use App\Http\Controllers\PeintreController;
 
 Route::prefix('admin')->group(function () {
     Route::get('/users', [UserManagementController::class, 'index']);
@@ -218,6 +219,7 @@ Route::get('/diagnostiquer-projets', [ProjetAutoController::class, 'diagnostique
 Route::get('/synchroniser-projets', [ProjetAutoController::class, 'synchroniserProjets']);
 
 Route::resource('taches-projet', TacheProjetController::class);
+Route::post('/login', [AuthController::class, 'login']);
 
 // Routes spéciales pour les boutons
 Route::get('taches-projet/create/grand', [TacheProjetController::class, 'create'])
@@ -238,4 +240,24 @@ Route::prefix('admin')->group(function () {
     Route::post('/demandes', [\App\Http\Controllers\DemandeDevisController::class, 'store']);
     Route::post('/clients', [\App\Http\Controllers\ClientController::class, 'store']);
     Route::post('/projets', [\App\Http\Controllers\ProjetController::class, 'store']);
+    
 });
+
+Route::apiResource('utilisateurs', UtilisateursController::class);
+    
+    // Routes personnalisées pour les utilisateurs
+    Route::get('utilisateurs/role/{role}', [UtilisateursController::class, 'getByRole']);
+    Route::get('/utilisateurs', [UtilisateursController::class, 'index']);
+    Route::post('utilisateurs/{id}/change-password', [UtilisateursController::class, 'changePassword']);
+    Route::patch('utilisateurs/{id}/toggle-status', [UtilisateursController::class, 'toggleStatus']);
+    Route::get('utilisateurs/search', [UtilisateursController::class, 'search']);
+
+    Route::apiResource('peintre', PeintreController::class);
+
+
+    Route::put('/devis/{id}/status', [DevisController::class, 'updateStatus']);
+
+Route::post('/taches-projet', [TacheProjetController::class, 'store']);
+Route::get('/projets/{projetId}/taches', [TacheProjetController::class, 'getTachesByProjet']);
+Route::put('/taches-projet/{id}', [TacheProjetController::class, 'update']);
+Route::delete('/taches-projet/{id}', [TacheProjetController::class, 'destroy']);

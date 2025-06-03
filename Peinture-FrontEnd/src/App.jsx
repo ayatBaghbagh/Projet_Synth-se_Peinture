@@ -135,6 +135,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {Utilisateurs} from './Geron/Utilisateurs.jsx';
 import {AdminDashboard} from './Geron/AdminDashboard.jsx';
+import {PaintProManager} from './chef_Equipe/PeintreComponent.jsx';
 
 function App() {
   return (
@@ -159,6 +160,7 @@ function App() {
         <Route path="mes-projets" element={<MesProjet/>} />
         <Route path="contactger" element={<ContactPageEspaceGeron/>} />
         <Route path="admindashboard" element={<AdminDashboard/>} />
+        <Route path="peintre" element={<PaintProManager/>} />
         <Route path="/mesdevis" element={
         <ProtectedRoutee>
           <MesDevisPage />

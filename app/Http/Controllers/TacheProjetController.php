@@ -22,30 +22,28 @@ class TacheProjetController extends Controller
         return view('taches-projet.create', compact('typeProjet'));
     }
 
-    public function store(Request $request)
+  public function store(Request $request)
 {
     $validated = $request->validate([
         'nom_tache' => 'required|string|max:255',
         'description' => 'nullable|string',
         'date_debut' => 'required|date',
         'date_fin' => 'required|date|after_or_equal:date_debut',
-        'statut' => 'required|string|in:a_faire,en_cours,terminee',
+        'statut' => 'required|string|in:a_faire,en_cours,termine',
         'notes' => 'nullable|string',
-        'type_projet' => 'required|string',
+        'type_projet' => 'required|string|in:grand,petit',
         'projet_id' => 'required|exists:projets,id_projet',
         'assignee_id' => 'nullable|exists:users,id',
     ]);
-    
 
     $tache = TacheProjet::create($validated);
-
+    
     return response()->json([
-        'message' => 'Tâche créée avec succès.',
-        'tache' => $tache
-    ]);
-}
-
-    public function getTachesByProjet($projetId)
+        'success' => true,
+        'message' => 'Tâche créée avec succès',
+        'data' => $tache
+    ], 201);
+}  public function getTachesByProjet($projetId)
     {
         $taches = TacheProjet::where('projet_id', $projetId)
             ->orderBy('date_debut', 'asc')

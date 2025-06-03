@@ -479,9 +479,9 @@ const handleSubmit = async (e) => {
       onClick={() => {
         setShowSuccessModal(false);
         if (onNavigate) {
-          onNavigate('/login');
+          onNavigate('/');
         } else {
-          navigate('/login');
+          navigate('/');
         }
       }}
       className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"

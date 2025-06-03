@@ -18,7 +18,6 @@ export function ProfileClient() {
     dateInscription: '',
     clientId: '',
     statut: '',
-    notes: '',
     avatar: null
   });
   
@@ -434,23 +433,7 @@ export function ProfileClient() {
                   </motion.div>
                 </div>
 
-                <div className="pt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Notes</h4>
-                  {isEditing ? (
-                    <textarea
-                      name="notes"
-                      value={editData.notes || ''}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      rows="3"
-                      placeholder="Ajoutez vos notes..."
-                    />
-                  ) : (
-                    <p className="text-gray-600 text-sm bg-gray-50 p-3 rounded-lg">
-                      {user.notes || 'Aucune note'}
-                    </p>
-                  )}
-                </div>
+                
               </div>
             </div>
 

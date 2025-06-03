@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ClientAuthController extends Controller
 {
@@ -193,6 +194,74 @@ class ClientAuthController extends Controller
         }
     }
 
+    // Fonction privée pour créer un projet à partir d'un devis accepté
+    private function creerProjetDepuisDevis($devis, $client)
+    {
+        try {
+            // Vérifier qu'un projet n'existe pas déjà pour ce devis
+            $projetExistant = Projet::where('id_devis', $devis->id_devis)->first();
+            if ($projetExistant) {
+                Log::info('Projet existe déjà pour le devis: ' . $devis->id_devis);
+                return $projetExistant;
+            }
+
+            // Créer le projet
+            $projet = new Projet();
+            $projet->id_devis = $devis->id_devis;
+            $projet->id_client = $client->id_client;
+            
+            // Titre du projet basé sur la description du devis ou de la demande
+            $titre = $devis->description_travaux;
+            if (!$titre && $devis->demandeDevis) {
+                $titre = $devis->demandeDevis->description;
+            }
+            if (!$titre) {
+                $titre = 'Projet de peinture';
+            }
+            $projet->titre = substr($titre, 0, 255); // Limiter la longueur
+            
+            // Description
+            $description = $devis->description_travaux ?? 'Projet créé automatiquement suite à l\'acceptation du devis';
+            $projet->description = $description;
+            
+            // Type de projet
+            $typeProjet = 'peinture'; // Valeur par défaut
+            if ($devis->demandeDevis && $devis->demandeDevis->type_travaux) {
+                $typeProjet = strtolower($devis->demandeDevis->type_travaux);
+            }
+            $projet->type_projet = $typeProjet;
+            
+            // Statut initial
+            $projet->status = 'planifie'; // ou 'en_attente', selon votre logique
+            
+            // Dates
+            $projet->date_d = now(); // Date de début = maintenant
+            
+            // Calculer la date de fin basée sur le délai d'exécution
+            if ($devis->delai_execution) {
+                $projet->date_f = now()->addDays($devis->delai_execution);
+            } else {
+                $projet->date_f = now()->addDays(30); // 30 jours par défaut
+            }
+            
+            // Autres champs
+            $projet->favoris = false;
+            $projet->created_at = now();
+            $projet->updated_at = now();
+            
+            $projet->save();
+            
+            Log::info('Projet créé avec succès: ID=' . $projet->id_projet . ' pour le devis: ' . $devis->id_devis);
+            
+            return $projet;
+            
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la création du projet: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            throw $e;
+        }
+    }
+
     // Mettre à jour le statut d'un devis
     public function updateDevisStatus(Request $request, $id)
     {
@@ -211,53 +280,73 @@ class ClientAuthController extends Controller
                 'motif_refus' => 'nullable|string|max:500'
             ]);
 
-            $devis = Devis::where('id_devis', $id)
-                          ->where('id_client', $client->id_client)
-                          ->first();
+            // Utiliser une transaction pour assurer la cohérence
+            return DB::transaction(function () use ($client, $id, $validated) {
+                $devis = Devis::with('demandeDevis')
+                              ->where('id_devis', $id)
+                              ->where('id_client', $client->id_client)
+                              ->first();
 
-            if (!$devis) {
+                if (!$devis) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Devis non trouvé ou non accessible'
+                    ], 404);
+                }
+
+                // Vérifier que le devis est en attente
+                if ($devis->statut !== 'en_attente') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ce devis ne peut plus être modifié'
+                    ], 400);
+                }
+
+                // Mettre à jour le statut du devis
+                $devis->statut = $validated['statut'];
+                
+                $projet = null;
+                $projetId = null;
+                
+                if ($validated['statut'] === 'accepte') {
+                    $devis->date_acceptation = now();
+                    $devis->date_refus = null;
+                    $devis->motif_refus = null;
+                    
+                    // Créer le projet automatiquement
+                    try {
+                        $projet = $this->creerProjetDepuisDevis($devis, $client);
+                        $projetId = $projet->id_projet;
+                        Log::info('Projet créé automatiquement: ID=' . $projetId . ' pour le devis accepté: ' . $id);
+                    } catch (\Exception $e) {
+                        Log::error('Erreur lors de la création automatique du projet: ' . $e->getMessage());
+                        // Ne pas faire échouer la transaction, mais log l'erreur
+                    }
+                    
+                } else {
+                    $devis->date_refus = now();
+                    $devis->date_acceptation = null;
+                    $devis->motif_refus = $validated['motif_refus'] ?? null;
+                }
+
+                $devis->save();
+
+                Log::info("Devis {$id} {$validated['statut']} par le client {$client->id_client}");
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Devis non trouvé ou non accessible'
-                ], 404);
-            }
-
-            // Vérifier que le devis est en attente
-            if ($devis->statut !== 'en_attente') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Ce devis ne peut plus être modifié'
-                ], 400);
-            }
-
-            // Mettre à jour le statut
-            $devis->statut = $validated['statut'];
-            
-            if ($validated['statut'] === 'accepte') {
-                $devis->date_acceptation = now();
-                $devis->date_refus = null;
-                $devis->motif_refus = null;
-            } else {
-                $devis->date_refus = now();
-                $devis->date_acceptation = null;
-                $devis->motif_refus = $validated['motif_refus'] ?? null;
-            }
-
-            $devis->save();
-
-            Log::info("Devis {$id} {$validated['statut']} par le client {$client->id_client}");
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Statut du devis mis à jour avec succès',
-                'devis' => [
-                    'id_devis' => $devis->id_devis,
-                    'statut' => $devis->statut,
-                    'date_acceptation' => $devis->date_acceptation,
-                    'date_refus' => $devis->date_refus,
-                    'motif_refus' => $devis->motif_refus,
-                ]
-            ]);
+                    'success' => true,
+                    'message' => 'Statut du devis mis à jour avec succès',
+                    'devis' => [
+                        'id_devis' => $devis->id_devis,
+                        'statut' => $devis->statut,
+                        'date_acceptation' => $devis->date_acceptation,
+                        'date_refus' => $devis->date_refus,
+                        'motif_refus' => $devis->motif_refus,
+                    ],
+                    'projet_id' => $projetId, // Retourner l'ID du projet créé
+                    'projet_cree' => $projet !== null
+                ]);
+            });
 
         } catch (\Exception $e) {
             Log::error('Erreur lors de la mise à jour du devis: ' . $e->getMessage());
@@ -435,8 +524,6 @@ class ClientAuthController extends Controller
         ]);
     }
 
-    
-
     // Debug pour vérifier l'authentification
     public function debugAuth(Request $request)
     {
@@ -484,10 +571,7 @@ class ClientAuthController extends Controller
 
             // Récupérer les projets du client avec les relations devis et client
             $projets = Projet::with(['devis', 'client'])
-                ->whereHas('devis', function($query) use ($client) {
-                    $query->where('id_client', $client->id_client)
-                          ->where('statut', 'accepte'); // Seulement les devis acceptés
-                })
+                ->where('id_client', $client->id_client)
                 ->orderBy('date_d', 'desc')
                 ->get();
 

@@ -68,27 +68,22 @@ class ProjetController extends Controller
 
     // Méthode pour basculer le favori
     public function toggleFavori(Projet $projet)
-    {
-        try {
-            $projet->favoris = !$projet->favoris;
-            $projet->save();
+{
+    try {
+        $projet->favoris = !$projet->favoris;
+        $projet->save();
 
-            if ($projet->favoris) {
-                $this->manageFavorisLimit();
-            }
-
-            return response()->json([
-                'message' => 'Statut favori mis à jour',
-                'favoris' => (bool)$projet->favoris
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Erreur de mise à jour',
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'message' => 'Statut favori mis à jour',
+            'favoris' => (bool)$projet->favoris
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Erreur de mise à jour',
+            'message' => $e->getMessage()
+        ], 500);
     }
-
+}
     private function manageFavorisLimit()
     {
         $favorisCount = Projet::where('favoris', true)->count();

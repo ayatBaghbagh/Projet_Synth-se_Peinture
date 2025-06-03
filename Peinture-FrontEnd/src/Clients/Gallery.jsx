@@ -105,12 +105,7 @@ const Gallery = () => {
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3 flex-col">
-                  <Link
-                    to={`/projets/${projet.id_projet}`}
-                    className="bg-white text-blue-600 px-5 py-2 rounded-full font-semibold shadow-lg hover:bg-blue-600 hover:text-white transition transform hover:scale-105"
-                  >
-                    Voir détails
-                  </Link>
+                 
                   <Link 
                     to="/demande-devis"
                     className="bg-green-500 text-white px-5 py-2 rounded-full font-semibold shadow-lg hover:bg-green-600 transition transform hover:scale-105"
