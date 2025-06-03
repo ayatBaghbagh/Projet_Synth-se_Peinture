@@ -128,6 +128,7 @@ import { ListeDemandeDevis } from './Geron/ListeDemandeDevis.jsx';
 import { ProjetsAdminPage } from './Geron/ProjetsAdminPage.jsx';
 import { ChefsAdminPage } from './Geron/ChefsAdminPage.jsx';
 import {Utilisateurs} from './Geron/Utilisateurs.jsx';
+import {ProfileAdmin} from './Geron/ProfileAdmin.jsx';
 function App() {
   return (
     <Routes>
@@ -146,6 +147,7 @@ function App() {
         <Route path="listedemande" element={<ListeDemandeDevis/>} />
         <Route path="projetvalider" element={<ProjetsAdminPage/>} />
         <Route path="chefsprojets" element={<ChefsAdminPage/>} />
+        <Route path="profil" element={<ProfileAdmin/>} />
         <Route path="/mesdevis" element={
         <ProtectedRoute>
           <MesDevisPage />

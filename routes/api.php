@@ -14,6 +14,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\ListeDemandeDevisController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Admin\AdminProfileController;
 
 use Illuminate\Support\Facades\Mail;
 
@@ -23,6 +24,7 @@ Route::post('/clients', [ClientController::class, 'store']);
 
 Route::prefix('admin')->group(function () {
     Route::get('/users', [UserManagementController::class, 'index']);
+    Route::get('/profile', [AdminProfileController::class, 'profile']);
     Route::post('/users', [UserManagementController::class, 'store']);
     Route::put('/users/{id}', [UserManagementController::class, 'update']);
     Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
