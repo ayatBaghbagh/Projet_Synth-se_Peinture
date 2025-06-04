@@ -71,58 +71,47 @@ export const Login = ({ onNavigate }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    setLoading(true);
-    setErrors({});
+  setLoading(true);
+  setErrors({});
 
-    try {
-      const response = await axios.post(
-        'http://localhost:8000/api/client/login',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-XSRF-TOKEN': csrfToken
-          },
-          withCredentials: true
+  try {
+    // D'abord, assurez-vous d'avoir le cookie CSRF
+    await axios.get('http://localhost:8000/sanctum/csrf-cookie', {
+      withCredentials: true
+    });
+
+    // Ensuite, faites la requête de login
+    const response = await axios.post(
+      'http://localhost:8000/api/client/login',
+      formData,
+      {
+        withCredentials: true, // Important pour les cookies
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
-      );
+      }
+    );
 
-      if (response.status === 200 && response.data.success) {
-        // Stocker le token et les données client
-        localStorage.setItem('auth_token', response.data.token);
-        localStorage.setItem('client', JSON.stringify(response.data.client));
-        
-        // Configurer axios avec le token pour les futures requêtes
-        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-        
-        console.log('Connexion réussie:', response.data);
-        
-        // CORRECTION: Rediriger vers la page "Mes Projets" au lieu du profil
-        navigate('/mes-projets');
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
-      if (error.response?.status === 401) {
-        setErrors({
-          general: 'Email ou mot de passe incorrect'
-        });
-      } else if (error.response?.data?.message) {
-        setErrors({
-          general: error.response.data.message
-        });
-      } else {
-        setErrors({
-          general: 'Erreur de connexion. Veuillez réessayer.'
-        });
-      }
-    } finally {
-      setLoading(false);
+    if (response.status === 200 && response.data.success) {
+      localStorage.setItem('auth_token', response.data.token);
+      localStorage.setItem('client', JSON.stringify(response.data.client));
+      
+      // Configurez axios pour les futures requêtes
+      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      
+      navigate('/mes-projets');
     }
-  };
+  } catch (error) {
+    // Gestion des erreurs...
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-stretch p-4 w-screen">

@@ -36,21 +36,49 @@ return [
     */
 
     'guards' => [
-        'web' => [
-            'driver' => 'session',
-            'provider' => 'users',
-        ],
-        'api' => [
-            'driver' => 'sanctum',
-            'provider' => 'users',
-        ],
-
-        // Guard spécifique pour les clients
-        'client' => [
-            'driver' => 'sanctum',
-            'provider' => 'clients',
-        ],
+    'web' => [
+        'driver' => 'session',
+        'provider' => 'users',
     ],
+
+    'api' => [
+        'driver' => 'sanctum',
+        'provider' => 'users',
+    ],
+
+    'client' => [
+        'driver' => 'sanctum',
+        'provider' => 'clients',
+    ],
+],
+
+'providers' => [
+    'users' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\Utilisateur::class,
+    ],
+
+    'clients' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\Client::class,
+    ],
+],
+    // 'guards' => [
+    //     'web' => [
+    //         'driver' => 'session',
+    //         'provider' => 'users',
+    //     ],
+    //     'api' => [
+    //         'driver' => 'sanctum',
+    //         'provider' => 'users',
+    //     ],
+
+    //     // Guard spécifique pour les clients
+    //     'client' => [
+    //         'driver' => 'sanctum',
+    //         'provider' => 'clients',
+    //     ],
+    // ],
 
     /*
     |--------------------------------------------------------------------------

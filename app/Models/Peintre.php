@@ -9,7 +9,7 @@ class Peintre extends Model
 {
     use HasFactory;
 
-    protected $table = 'peintre';
+    protected $table = 'peintres';
     protected $primaryKey = 'num_peintre';
 
     protected $fillable = [

@@ -625,4 +625,39 @@ class ClientAuthController extends Controller
             ], 500);
         }
     }
+
+
+    public function debugLogin(Request $request)
+{
+    try {
+        $credentials = $request->only('email', 'password');
+        
+        Log::info('Debug login attempt', [
+            'email' => $credentials['email'] ?? null,
+            'password_present' => isset($credentials['password']),
+            'client_exists' => Client::where('email', $credentials['email'] ?? '')->exists(),
+            'php_version' => phpversion(),
+            'laravel_version' => app()->version(),
+        ]);
+
+        if (!Auth::guard('client')->attempt($credentials)) {
+            Log::warning('Debug: Auth attempt failed', $credentials);
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $client = Auth::guard('client')->user();
+        $token = $client->createToken('client-token')->plainTextToken;
+
+        return response()->json([
+            'client' => $client,
+            'token' => $token,
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Debug login error', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+}
 }

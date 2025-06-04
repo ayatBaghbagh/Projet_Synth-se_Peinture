@@ -46,7 +46,7 @@ Route::post('/client/login', [ClientAuthController::class, 'login']); // Client 
 
 
 // Routes protégées avec Sanctum pour les clients
-Route::middleware('auth:sanctum')->group(function () {
+
     // Informations du profil client
     Route::get('/client/profile', [ClientAuthController::class, 'profile']);
     
@@ -57,7 +57,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-});
+Route::middleware('auth:sanctum')->group(function () {});
 
 // Route OPTIONS spécifique pour /clients
 Route::options('/clients', [ClientController::class, 'options']);
